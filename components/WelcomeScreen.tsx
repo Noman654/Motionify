@@ -204,7 +204,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
              <button
                 onClick={handleCustomValidation}
                 disabled={isValidating}
-                className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg flex items-center justify-center gap-2 ${
+                className={`w-full py-4 rounded-xl font-bold text-black transition-all shadow-lg flex items-center justify-center gap-2 ${
                     isValidating 
                     ? 'bg-gray-700 cursor-not-allowed' 
                     : 'bg-white text-black hover:bg-gray-200'
