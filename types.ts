@@ -1,3 +1,4 @@
+
 export interface SRTItem {
   id: number;
   startTime: number; // in seconds
@@ -20,6 +21,7 @@ export interface GeneratedContent {
 }
 
 export enum AppState {
+  WELCOME = 'WELCOME',
   UPLOAD = 'UPLOAD',
   GENERATING = 'GENERATING',
   EDITOR = 'EDITOR',

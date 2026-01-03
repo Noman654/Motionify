@@ -1,12 +1,31 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GeneratedContent } from "../types";
 import { constructPrompt } from "../utils/promptTemplates";
+
+export const validateGeminiConnection = async (apiKey: string, modelName: string): Promise<boolean> => {
+  if (!apiKey) return false;
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    // Simple verification call
+    await ai.models.generateContent({
+        model: modelName,
+        contents: "Test connection.",
+    });
+    return true;
+  } catch (e) {
+    console.error("API Key Validation Failed:", e);
+    return false;
+  }
+};
 
 export const generateReelContent = async (
   srtText: string,
   topicContext: string,
   apiKey: string,
-  modelName: string
+  modelName: string,
+  existingHtml?: string,
+  existingLayout?: any
 ): Promise<GeneratedContent> => {
   if (!apiKey) {
     throw new Error("API Key is missing. Please enter it in the settings.");
@@ -16,7 +35,7 @@ export const generateReelContent = async (
 
   const systemInstruction = `
     You are a world-class Motion Graphics Designer and Creative Technologist for high-retention social media video (Reels/TikTok).
-    Your goal is to generate a visual composition that transforms a raw transcript into an immersive, "edutainment" style video experience.
+    Your goal is to generate or refine a visual composition that transforms a raw transcript into an immersive, "edutainment" style video experience.
 
     ### DESIGN SYSTEM & AESTHETIC (STRICTLY FOLLOW THIS ESSENCE)
     You must output high-fidelity, polished UI/UX animation.
@@ -56,8 +75,31 @@ export const generateReelContent = async (
     - 'captionPosition': 'top', 'center', 'bottom' (dynamically move based on where the graphics are).
   `;
 
-  // Use the constructPrompt helper to include the massive few-shot example
-  const prompt = constructPrompt(topicContext, srtText);
+  let prompt = constructPrompt(topicContext, srtText);
+
+  // If refinement is requested, modify the prompt to include previous state
+  if (existingHtml && existingLayout) {
+      prompt = `
+      I have an existing HTML animation and Layout Config that I want to REFINE based on new instructions.
+      
+      *** CURRENT HTML ***
+      ${existingHtml}
+
+      *** CURRENT LAYOUT JSON ***
+      ${JSON.stringify(existingLayout)}
+
+      *** REFINEMENT INSTRUCTIONS (User Feedback) ***
+      ${topicContext || "Improve the animations and make them smoother."}
+
+      *** TRANSCRIPT CONTEXT ***
+      ${srtText}
+
+      TASK:
+      1. Analyze the Current HTML and Layout.
+      2. Apply the Refinement Instructions.
+      3. Return the FULLY UPDATED HTML and Layout JSON. Do not return diffs, return the complete working code.
+      `;
+  }
 
   // Define the schema for structured output
   const layoutStepSchema: Schema = {
