@@ -10,8 +10,8 @@ export const validateGeminiConnection = async (apiKey: string, modelName: string
   try {
     // Simple verification call
     await ai.models.generateContent({
-        model: modelName,
-        contents: "Test connection.",
+      model: modelName,
+      contents: "Test connection.",
     });
     return true;
   } catch (e) {
@@ -36,7 +36,7 @@ export const generateSRT = async (
   apiKey: string
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey });
-  
+
   // OPTIMIZATION: If input is a video, extract the audio track first.
   // Sending pure Audio (WAV) to Gemini significantly improves timestamp accuracy compared to processing video frames.
   let fileToProcess = mediaFile;
@@ -44,19 +44,19 @@ export const generateSRT = async (
 
   if (mediaFile.type.startsWith('video/')) {
     try {
-        console.log("Extracting audio from video for better transcription accuracy...");
-        const audioBlob = await extractAudioBlob(mediaFile as File);
-        fileToProcess = audioBlob;
-        mimeType = 'audio/wav';
+      console.log("Extracting audio from video for better transcription accuracy...");
+      const audioBlob = await extractAudioBlob(mediaFile as File);
+      fileToProcess = audioBlob;
+      mimeType = 'audio/wav';
     } catch (e) {
-        console.warn("Audio extraction failed, falling back to video processing.", e);
+      console.warn("Audio extraction failed, falling back to video processing.", e);
     }
   }
 
   const base64Data = await fileToBase64(fileToProcess);
-  
+
   // Use Flash for speed and multimodal capability
-  const model = 'gemini-2.5-flash'; 
+  const model = 'gemini-2.5-flash';
 
   // Define a strict schema for subtitles to prevent formatting hallucinations
   const subtitleSchema: Schema = {
@@ -103,16 +103,16 @@ export const generateSRT = async (
     });
 
     const segments = JSON.parse(response.text || "[]");
-    
+
     // Convert JSON segments to SRT String
     let srtOutput = "";
     segments.forEach((seg: any, index: number) => {
-       const id = index + 1;
-       const startTime = formatSRTTimestamp(seg.start);
-       const endTime = formatSRTTimestamp(seg.end);
-       const text = seg.text.trim();
-       
-       srtOutput += `${id}\n${startTime} --> ${endTime}\n${text}\n\n`;
+      const id = index + 1;
+      const startTime = formatSRTTimestamp(seg.start);
+      const endTime = formatSRTTimestamp(seg.end);
+      const text = seg.text.trim();
+
+      srtOutput += `${id}\n${startTime} --> ${endTime}\n${text}\n\n`;
     });
 
     return srtOutput.trim();
@@ -130,7 +130,7 @@ export const generateTTS = async (
 ): Promise<Blob> => {
   const ai = new GoogleGenAI({ apiKey });
   // Correct model for TTS
-  const model = 'gemini-2.5-flash-preview-tts'; 
+  const model = 'gemini-2.5-flash-preview-tts';
 
   // Map to Gemini Voices
   // Female: Kore, Male: Charon
@@ -160,9 +160,9 @@ export const generateTTS = async (
     for (let i = 0; i < len; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    
+
     // Wrap raw PCM in WAV header so browsers can play/download it
-    return pcmToWav(bytes, 24000); 
+    return pcmToWav(bytes, 24000);
   } catch (error: any) {
     console.error("TTS Generation Error:", error);
     throw new Error(`Failed to generate speech: ${error.message || "Unknown error"}`);
@@ -241,7 +241,7 @@ export const generateReelContent = async (
   let prompt = constructPrompt(topicContext, srtText);
 
   if (existingHtml && existingLayout) {
-      prompt = `
+    prompt = `
       I have an existing HTML animation and Layout Config that I want to REFINE.
       
       *** CRITICAL FIX INSTRUCTIONS ***
@@ -289,7 +289,7 @@ export const generateReelContent = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: modelName, 
+      model: modelName,
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
@@ -303,7 +303,7 @@ export const generateReelContent = async (
     // --- REEL HELPER API INJECTION ---
     // Instead of just a shim, we inject a robust helper library to prevent common AI mistakes.
     if (result.html) {
-        const reelHelperScript = `<script>
+      const reelHelperScript = `<script>
             /* REEL COMPOSER STANDARD LIBRARY */
             (function() {
                 // 1. Polyfill Collection Methods (Shim)
@@ -330,9 +330,9 @@ export const generateReelContent = async (
                 console.log("Reel Composer: Standard Library Loaded");
             })();
         </script>`;
-        
-        // Inject immediately after <head> for earliest execution
-        result.html = result.html.replace('<head>', '<head>' + reelHelperScript);
+
+      // Inject immediately after <head> for earliest execution
+      result.html = result.html.replace('<head>', '<head>' + reelHelperScript);
     }
     // -----------------------------
 

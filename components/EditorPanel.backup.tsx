@@ -201,72 +201,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     }
   };
 
-  // Custom syntax highlighting for HTML with better colors
-  const highlightHTML = (code: string) => {
-    try {
-      return highlight(code, languages.markup, 'markup');
-    } catch (e) {
-      return code;
-    }
-  };
-
-  const highlightJSON = (code: string) => {
-    try {
-      return highlight(code, languages.javascript, 'javascript');
-    } catch (e) {
-      return code;
-    }
-  };
-
   return (
     <div className="h-full flex flex-col bg-gray-900 border-l border-gray-800">
-      {/* Custom CSS for Prism theme customization */}
-      <style>{`
-        .prism-code pre[class*="language-"] {
-          background: transparent !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        
-        .prism-code code[class*="language-"] {
-          background: transparent !important;
-          color: #93c5fd !important;
-          font-size: 14px !important;
-          line-height: 1.6 !important;
-          font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, monospace !important;
-        }
-
-        /* Enhanced syntax colors */
-        .token.tag { color: #f472b6 !important; font-weight: 500; }
-        .token.attr-name { color: #fbbf24 !important; font-style: italic; }
-        .token.attr-value { color: #86efac !important; }
-        .token.punctuation { color: #93c5fd !important; }
-        .token.comment { color: #6b7280 !important; font-style: italic; }
-        .token.string { color: #86efac !important; }
-        .token.keyword { color: #c084fc !important; font-weight: 600; }
-        .token.function { color: #60a5fa !important; }
-        .token.number { color: #fb923c !important; }
-        .token.property { color: #fbbf24 !important; }
-        .token.boolean { color: #fb923c !important; }
-        .token.operator { color: #93c5fd !important; }
-
-        /* Editor container */
-        .visual-editor-container {
-          background: #0a0a0f !important;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .visual-editor-container textarea {
-          outline: none !important;
-          caret-color: #93c5fd !important;
-        }
-
-        .visual-editor-container pre {
-          pointer-events: none !important;
-        }
-      `}</style>
-
       <div className="flex border-b border-gray-800">
         <button
           onClick={() => setActiveTab('config')}
@@ -290,23 +226,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
       <div className="flex-1 overflow-auto p-4 relative">
         {activeTab === 'config' && (
-          <div className="h-full visual-editor-container border border-gray-800">
-            <div className="prism-code">
-              <Editor
-                value={localConfig}
-                onValueChange={setLocalConfig}
-                highlight={highlightJSON}
-                padding={16}
-                style={{
-                  minHeight: '100%',
-                  fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  background: '#0a0a0f'
-                }}
-              />
-            </div>
-          </div>
+          <textarea
+            className="w-full h-full bg-gray-950 text-green-400 font-mono text-sm p-4 rounded border border-gray-800 focus:border-purple-500 outline-none resize-none"
+            value={localConfig}
+            onChange={(e) => setLocalConfig(e.target.value)}
+          />
         )}
         {activeTab === 'html' && (
           <div className="flex flex-col h-full space-y-2 -m-4 p-4">
@@ -357,23 +281,19 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               </div>
             )}
 
-            {/* HTML Visual Editor */}
-            <div className="flex-1 visual-editor-container border border-gray-800">
-              <div className="prism-code h-full">
-                <Editor
-                  value={localHtml}
-                  onValueChange={setLocalHtml}
-                  highlight={highlightHTML}
-                  padding={16}
-                  style={{
-                    minHeight: '100%',
-                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                    background: '#0a0a0f'
-                  }}
-                />
-              </div>
+            {/* HTML Textarea with better formatting */}
+            <div className="flex-1 relative overflow-hidden rounded border border-gray-800">
+              <textarea
+                ref={htmlTextareaRef}
+                className="w-full h-full bg-gray-950 text-blue-300 font-mono text-sm p-4 focus:border-purple-500 outline-none resize-none leading-relaxed"
+                value={localHtml}
+                onChange={(e) => setLocalHtml(e.target.value)}
+                spellCheck={false}
+                style={{
+                  tabSize: 2,
+                  lineHeight: '1.6'
+                }}
+              />
             </div>
           </div>
         )}
@@ -443,8 +363,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     onClick={onGenerate}
                     disabled={isGenerating || !apiKey}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded font-bold transition-all mt-2 ${!apiKey
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-700 to-pink-700 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-900/20'
+                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-700 to-pink-700 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-900/20'
                       }`}
                   >
                     {isGenerating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={14} />}
