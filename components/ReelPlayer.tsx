@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { LayoutConfigStep, SRTItem } from '../types';
 import { Play, Pause, RefreshCw, Maximize, Minimize, Video, StopCircle, X, AlertTriangle, Monitor, Download } from 'lucide-react';
+import { ExportModal } from './ExportModal';
 
 interface ReelPlayerProps {
   videoUrl: string;
+  videoFile?: File | null;
   srtData: SRTItem[];
   htmlContent: string;
   layoutConfig: LayoutConfigStep[];
@@ -11,11 +13,13 @@ interface ReelPlayerProps {
   fullScreenMode: boolean;
   toggleFullScreen: () => void;
   bgMusicUrl?: string;
+  bgMusicFile?: File | null;
   bgMusicVolume?: number;
 }
 
 export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   videoUrl,
+  videoFile,
   srtData,
   htmlContent,
   layoutConfig,
@@ -23,6 +27,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   fullScreenMode,
   toggleFullScreen,
   bgMusicUrl,
+  bgMusicFile,
   bgMusicVolume = 0.2
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -33,6 +38,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [showExportInfo, setShowExportInfo] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // Key to force re-render iframe on restart
@@ -549,69 +555,25 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
           </button>
 
           <button
-            onClick={() => setShowExportInfo(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-lg font-medium transition-colors shadow-lg shadow-red-900/20"
+            onClick={() => setShowExportModal(true)}
+            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-lg font-medium transition-colors shadow-lg shadow-purple-900/20"
           >
             <Video size={18} />
-            Rec & Export
+            High Quality Export
           </button>
         </div>
       )}
 
-      {/* Export Information Modal */}
-      {showExportInfo && (
-        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full shadow-2xl relative">
-            <button
-              onClick={() => setShowExportInfo(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4 text-amber-500">
-              <AlertTriangle size={24} />
-              <h3 className="text-lg font-bold text-white">Export Unavailable</h3>
-            </div>
-
-            <p className="text-gray-300 text-sm mb-4 leading-relaxed">
-              Server-side FFmpeg recording is currently <strong>disabled</strong> for the Public Preview.
-            </p>
-
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg mb-6 text-xs text-red-200 font-mono">
-              "Running video rendering for everyone for free would melt my servers! 🔥"
-            </div>
-
-            <div className="bg-black/40 p-4 rounded-lg border border-gray-800 mb-6">
-              <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-2">
-                <Monitor size={14} className="text-purple-400" /> Recommendation:
-              </h4>
-              <p className="text-xs text-gray-400">
-                Use <strong>OBS Studio</strong> or your system's screen recorder to capture the playback in high quality.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => setShowExportInfo(false)}
-                className="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors text-sm"
-              >
-                Got it, I'll use OBS
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowExportInfo(false);
-                  startRecording();
-                }}
-                className="text-[10px] text-gray-500 hover:text-gray-300 underline"
-              >
-                Try Browser Recorder (Experimental/Client-Side)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* High Quality Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        videoFile={videoFile || null}
+        htmlContent={htmlContent}
+        bgMusicFile={bgMusicFile}
+        bgMusicVolume={bgMusicVolume}
+        duration={duration}
+      />
 
       {isRecording && (
         <div className="fixed top-4 right-4 z-[100]">

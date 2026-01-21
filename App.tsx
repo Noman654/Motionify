@@ -524,12 +524,14 @@ const App: React.FC = () => {
                                     <div className={`flex-1 flex flex-col items-center justify-center bg-black/20 relative transition-all duration-300 ${isFullScreen ? 'w-full fixed inset-0 z-50 bg-black' : ''}`}>
                                         <ReelPlayer
                                             videoUrl={videoUrl}
+                                            videoFile={videoFile}
                                             srtData={srtData}
                                             htmlContent={generatedContent.html}
                                             layoutConfig={generatedContent.layoutConfig}
                                             fullScreenMode={isFullScreen}
                                             toggleFullScreen={toggleFullScreen}
                                             bgMusicUrl={bgMusicUrl}
+                                            bgMusicFile={bgMusicFile}
                                             bgMusicVolume={bgMusicVolume}
                                         />
                                     </div>
