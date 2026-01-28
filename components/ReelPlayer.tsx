@@ -573,6 +573,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
         bgMusicFile={bgMusicFile}
         bgMusicVolume={bgMusicVolume}
         duration={duration}
+        srtData={srtData}
+        layoutConfig={layoutConfig}
       />
 
       {isRecording && (

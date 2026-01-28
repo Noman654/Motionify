@@ -191,10 +191,19 @@ const App: React.FC = () => {
         }
 
         const prompt = constructPrompt(currentTopic, currentSrtRaw);
-        navigator.clipboard.writeText(prompt);
 
-        setShowSnackbar(true);
-        setTimeout(() => setShowSnackbar(false), 3000);
+
+        try {
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(prompt);
+                setShowSnackbar(true);
+                setTimeout(() => setShowSnackbar(false), 3000);
+            } else {
+                console.warn("Clipboard API not available - skipping copy.");
+            }
+        } catch (err) {
+            console.warn("Failed to copy to clipboard:", err);
+        }
 
         // If NO API KEY -> Force Manual Mode
         if (!apiKey.trim()) {
