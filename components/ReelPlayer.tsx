@@ -365,6 +365,16 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     };
   }, []);
 
+  // --- ESC key to exit fullscreen ---
+  useEffect(() => {
+    if (!fullScreenMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') toggleFullScreen();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fullScreenMode, toggleFullScreen]);
+
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) videoRef.current.pause();

@@ -2,30 +2,8 @@
 // This replaces the existing projectStorage.ts
 
 import { saveVideoFile, loadVideoFile, deleteVideoFile } from './videoStorage';
-
-export interface SavedProject {
-    id: string;
-    name: string;
-    createdAt: number;
-    updatedAt: number;
-    thumbnail?: string;
-
-    // Content
-    html: string;
-    layoutConfig: any[];
-    srtText: string;
-    topicContext: string;
-
-    // Settings
-    bgMusicName?: string;
-    bgMusicVolume: number;
-
-    // Metadata
-    videoFileName?: string;
-    hasVideo?: boolean;
-    duration?: number;
-    tags?: string[];
-}
+import { SavedProject } from '../types';
+export type { SavedProject };
 
 const STORAGE_KEY = 'reel_composer_projects';
 const MAX_PROJECTS = 50;

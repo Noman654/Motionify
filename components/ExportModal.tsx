@@ -1,7 +1,9 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { toCanvas } from 'html-to-image';
+import { flushSync } from 'react-dom';
+import { toCanvas } from 'html-to-image'; // Still used for subtitle capture only
 import { X, CheckCircle, AlertCircle, Loader2, Zap, FileCode } from 'lucide-react';
+import { LayoutConfigStep, SRTItem } from '../types';
 
 interface ExportModalProps {
     isOpen: boolean;
@@ -11,13 +13,12 @@ interface ExportModalProps {
     bgMusicFile?: File | null;
     bgMusicVolume?: number;
     duration?: number;
-    srtData?: any[];
-    layoutConfig?: any[];
+    srtData?: SRTItem[];
+    layoutConfig?: LayoutConfigStep[];
 }
 
 // --- HIDDEN SUBTITLE RENDERER (Exact Clone of ReelPlayer Logic) ---
-// --- HIDDEN SUBTITLE RENDERER (Exact Clone of ReelPlayer Logic) ---
-const SubtitleRenderer = ({ currentTime, srtData, layoutConfig }: { currentTime: number, srtData: any[], layoutConfig?: any[] }) => {
+const SubtitleRenderer = ({ currentTime, srtData, layoutConfig }: { currentTime: number, srtData: SRTItem[], layoutConfig?: LayoutConfigStep[] }) => {
     const currentCaption = useMemo(() => {
         return srtData.find(item => currentTime >= item.startTime && currentTime <= item.endTime);
     }, [currentTime, srtData]);
@@ -96,48 +97,49 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     const [exportTime, setExportTime] = useState(0);
 
     useEffect(() => {
-        setIsNative(!!(window as any).electron);
-        const electron = (window as any).electron;
-        if (electron && electron.onProgress) {
-            electron.onProgress((data: any) => {
+        setIsNative(!!window.electron);
+        const electron = window.electron;
+        let unsubscribe: (() => void) | undefined;
+
+        if (electron?.onProgress) {
+            unsubscribe = electron.onProgress((data) => {
                 if (data.phase === 'merging') {
                     setProgress(Math.round(data.percent || 0));
                     setLogText(`Merging Audio: ${Math.round(data.percent || 0)}%`);
                 }
             });
         }
+
+        return () => {
+            // Clean up the IPC listener on unmount to prevent leaks
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
 
     const startNativeRender = async () => {
-        console.log("Start Native Render Clicked"); // DEBUG LOG
-
         if (!videoFile) {
-            console.error("No video file provided");
             setLogText("Error: No video file found.");
             setStatus('error');
             return;
         }
-        if (!isNative) {
-            console.error("Not in Electron environment");
-            return;
-        }
+        if (!isNative) return;
 
-        const electron = (window as any).electron;
+        const electron = window.electron!;
 
         setStatus('rendering');
         setProgress(0);
         setLogText('Initializing...');
 
+        let videoUrl: string | null = null;
+
         try {
             const savePath = await electron.saveDialog('MyReel.mp4');
-            console.log("Selected save path:", savePath); // DEBUG LOG
             if (!savePath) { setStatus('idle'); return; }
 
-            // Save Assets
+            // Save assets to temp files
             const videoBuffer = await videoFile.arrayBuffer();
             const tempVideoPath = await electron.saveTempFile({ buffer: videoBuffer, extension: 'mp4' });
 
@@ -147,14 +149,26 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 tempBgMusicPath = await electron.saveTempFile({ buffer: bgBuffer, extension: 'mp3' });
             }
 
-            // Start FFmpeg
             const WIDTH = 1080;
             const HEIGHT = 1920;
             const FPS = 30;
+
+            // --- Initialize offscreen overlay window for HTML capture ---
+            setLogText('Loading HTML overlay...');
+            const initResult = await electron.initOverlayWindow({
+                htmlContent: htmlContent,
+                width: WIDTH,
+                height: HEIGHT
+            });
+            if (!initResult.success) {
+                throw new Error('Failed to init overlay window: ' + (initResult.error || 'unknown'));
+            }
+
+            // Start FFmpeg frame stream
             await electron.startRender({ width: WIDTH, height: HEIGHT, fps: FPS });
 
-            // Prepare Video
-            const videoUrl = URL.createObjectURL(videoFile);
+            // Prepare video element for frame extraction
+            videoUrl = URL.createObjectURL(videoFile);
             const video = videoRef.current!;
             video.src = videoUrl;
             video.load();
@@ -162,76 +176,59 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             video.currentTime = 0;
             await new Promise(r => setTimeout(r, 100));
 
-            // Prepare Iframe for capture
-            const iframe = iframeRef.current!;
-            // Wait for iframe content to fully load including external resources
-            await new Promise(r => setTimeout(r, 1500));
-
             const canvas = canvasRef.current!;
             canvas.width = WIDTH;
             canvas.height = HEIGHT;
             const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
 
-            // RENDER LOOP
-            // DEBUG: Cap at 10 seconds for faster testing & to avoid OOM
-            const DEBUG_DURATION = 10;
-            const effectiveDuration = Math.min(duration, DEBUG_DURATION);
-            const totalFrames = Math.ceil(effectiveDuration * FPS);
+            const totalFrames = Math.ceil(duration * FPS);
+            let lastOverlayHeight = -1; // Track to avoid unnecessary resizes
 
+            // === RENDER LOOP ===
             for (let i = 0; i < totalFrames; i++) {
                 const time = i / FPS;
 
-                // 1. Sync React State (Subtitles)
-                setExportTime(time);
+                // 1. Sync subtitle state (flushSync ensures render before capture)
+                flushSync(() => setExportTime(time));
 
-                // --- Determine Current Layout ---
-                // Helper to find layout (mirrors ReelPlayer logic)
+                // 2. Determine current layout
                 let currentLayout = layoutConfig.find(step => time >= step.startTime && time < step.endTime);
                 if (!currentLayout && layoutConfig.length > 0) {
-                    // Check if past last step
                     if (time >= layoutConfig[layoutConfig.length - 1].endTime) {
                         currentLayout = layoutConfig[layoutConfig.length - 1];
                     }
                 }
-                // Default fallback
                 if (!currentLayout) {
                     currentLayout = { layoutMode: 'split', splitRatio: 0.5, startTime: 0, endTime: 9999 };
                 }
 
                 const { layoutMode, splitRatio = 0.5 } = currentLayout;
 
-                // Calculate Dimensions
-                let htmlH = HEIGHT * 0.5; // Default 50%
+                // 3. Calculate dimensions
+                let htmlH = HEIGHT * 0.5;
                 let videoH = HEIGHT * 0.5;
                 let videoY = HEIGHT * 0.5;
-                let htmlY = 0; // html always top? verify ReelPlayer logic.
-                // ReelPlayer: htmlContainer top:0. videoContainer bottom:0.
 
                 if (layoutMode === 'full-video') {
                     htmlH = 0; videoH = HEIGHT; videoY = 0;
                 } else if (layoutMode === 'full-html') {
-                    htmlH = HEIGHT; videoH = 0; videoY = HEIGHT; // Video hidden offscreen/zero
+                    htmlH = HEIGHT; videoH = 0; videoY = HEIGHT;
                 } else if (layoutMode === 'split') {
                     htmlH = HEIGHT * splitRatio;
                     videoH = HEIGHT * (1 - splitRatio);
-                    videoY = htmlH; // Video starts where HTML ends
+                    videoY = htmlH;
                 }
 
-                // Resize Hidden Iframe Container
-                const iframeContainer = document.getElementById('hidden-iframe-container');
-                if (iframeContainer) {
-                    iframeContainer.style.height = `${htmlH}px`;
+                // 4. Resize overlay window if HTML height changed
+                const roundedHtmlH = Math.round(htmlH);
+                if (roundedHtmlH !== lastOverlayHeight && roundedHtmlH > 0) {
+                    await electron.resizeOverlayWindow({ width: WIDTH, height: roundedHtmlH });
+                    lastOverlayHeight = roundedHtmlH;
                 }
 
-                // 2. Sync Video
+                // 5. Seek video
                 video.currentTime = time;
-                // 3. Sync Iframe
-                iframe.contentWindow?.postMessage({ type: 'timeupdate', time }, '*');
-
-                // Wait for all updates
-                await new Promise(r => setTimeout(r, 50));
-
-                // STRICT SEEK WAIT
+                await new Promise(r => setTimeout(r, 30));
                 if (video.seeking) {
                     await new Promise<void>(r => {
                         const h = () => { video.removeEventListener('seeked', h); r(); };
@@ -239,32 +236,27 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     });
                 }
 
-                // CLEAR CANVAS
+                // 6. Clear canvas
                 ctx.clearRect(0, 0, WIDTH, HEIGHT);
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-                // DRAW 1: Video (if visible)
+                // 7. DRAW VIDEO (if visible)
                 if (videoH > 0) {
                     const vidRatio = video.videoWidth / video.videoHeight;
-                    // Target area is WIDTH x videoH
                     const targetRatio = WIDTH / videoH;
-
-                    let drawW = WIDTH, drawH = videoH, dx = 0, dy = videoY; // dy starts at videoY
+                    let drawW = WIDTH, drawH = videoH, dx = 0, dy = videoY;
 
                     if (vidRatio > targetRatio) {
-                        // Video is wider than target area -> Crop sides, fit height
                         drawH = videoH;
                         drawW = videoH * vidRatio;
                         dx = (WIDTH - drawW) / 2;
                     } else {
-                        // Video is taller -> Crop top/bottom, fit width
                         drawW = WIDTH;
                         drawH = WIDTH / vidRatio;
                         dy = videoY + (videoH - drawH) / 2;
                     }
 
-                    // Clip to video region to prevent overflow drawing
                     ctx.save();
                     ctx.beginPath();
                     ctx.rect(0, videoY, WIDTH, videoH);
@@ -273,71 +265,48 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     ctx.restore();
                 }
 
-                // DRAW 2: Iframe Overlay (using html-to-image)
+                // 8. DRAW HTML OVERLAY (via offscreen BrowserWindow capturePage)
                 if (htmlH > 0) {
                     try {
-                        if (iframe.contentDocument) {
-                            // Force Transparency on body
-                            iframe.contentDocument.body.style.backgroundColor = 'transparent';
-                            iframe.contentDocument.documentElement.style.backgroundColor = 'transparent';
-
-                            // Wait a tiny bit for any dynamic content
-                            await new Promise(r => setTimeout(r, 50));
-
-                            const HTML_SCALE = 2; // High quality for icons/SVGs
-                            const overlay = await toCanvas(iframe.contentDocument.documentElement, {
-                                width: WIDTH,
-                                height: htmlH,
-                                skipAutoScale: true,
-                                pixelRatio: HTML_SCALE,
-                                backgroundColor: null,
-                                cacheBust: true
-                            } as any);
-
-                            // Draw scaled back down to fit 1080p canvas
-                            ctx.drawImage(overlay, 0, 0, WIDTH, htmlH);
+                        const captureResult = await electron.captureOverlayFrame({ time });
+                        if (captureResult.success && captureResult.buffer) {
+                            // Convert the PNG buffer to an ImageBitmap for canvas drawing
+                            const blob = new Blob([captureResult.buffer], { type: 'image/png' });
+                            const bitmap = await createImageBitmap(blob);
+                            ctx.drawImage(bitmap, 0, 0, WIDTH, roundedHtmlH);
+                            bitmap.close();
                         }
                     } catch (e) {
                         console.error("Overlay capture error:", e);
                     }
                 }
 
-                // DRAW 3: Subtitles
+                // 9. DRAW SUBTITLES (still uses html-to-image for simple text elements)
                 const subTarget = document.getElementById('hidden-subtitle-render-target');
                 if (subTarget && srtData?.length) {
                     try {
-                        const SUB_SCALE = 2; // High quality text capture
+                        const SUB_SCALE = 2;
                         const subImg = await toCanvas(subTarget, {
                             backgroundColor: null as any,
                             skipAutoScale: true,
                             pixelRatio: SUB_SCALE
                         });
 
-                        // Calculate Subtitle Y based on Layout
-                        // Default fallback
                         let subY = HEIGHT * 0.82;
-
                         if (layoutMode === 'split') {
-                            // On the split line
                             subY = (HEIGHT * splitRatio) - (subImg.height / SUB_SCALE / 2);
-                        } else if (layoutMode === 'full-video') {
-                            subY = HEIGHT * 0.8;
-                        } else if (layoutMode === 'full-html') {
+                        } else if (layoutMode === 'full-video' || layoutMode === 'full-html') {
                             subY = HEIGHT * 0.8;
                         }
 
-                        // Original CSS Width was 900px
                         const desiredWidth = 900;
                         const desiredHeight = subImg.height / SUB_SCALE;
-
                         const subX = (WIDTH - desiredWidth) / 2;
-
-                        // Draw scaled back down to fit 1080p canvas
                         ctx.drawImage(subImg, subX, subY, desiredWidth, desiredHeight);
-                    } catch (e) { }
+                    } catch (e) { /* subtitle capture failed, skip frame */ }
                 }
 
-                // Send Frame
+                // 10. Send frame to FFmpeg
                 const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.90));
                 if (blob) await electron.writeFrame(await blob.arrayBuffer());
 
@@ -346,7 +315,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
             }
 
-            // Finish
+            // === FINALIZE ===
+            await electron.closeOverlayWindow();
+
             setStatus('merging');
             await electron.endRender({
                 originalVideoPath: tempVideoPath,
@@ -357,12 +328,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
             setStatus('done');
             setOutputPath(savePath);
-            URL.revokeObjectURL(videoUrl);
 
         } catch (e: any) {
             console.error(e);
             setStatus('error');
             setLogText('Error: ' + e.message);
+            // Ensure overlay window is cleaned up on error
+            try { await window.electron?.closeOverlayWindow(); } catch (_) { }
+        } finally {
+            if (videoUrl) URL.revokeObjectURL(videoUrl);
         }
     };
 
@@ -374,7 +348,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         setProgress(100); // Indeterminate or just full for HTML
 
         try {
-            const electron = (window as any).electron;
+            const electron = window.electron!;
             const res = await electron.saveInlineHtml(htmlContent);
 
             if (res.success) {
@@ -395,16 +369,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl p-6">
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/80 rounded-2xl w-full max-w-md shadow-2xl shadow-black/50 p-6 animate-scale-in ring-1 ring-white/5">
 
-                {/* Hidden Render Elements */}
+                {/* Hidden Render Elements — iframe removed; overlay capture is
+                    now handled by an offscreen BrowserWindow in the main process. */}
                 <div className="fixed -left-[9999px] top-0" style={{ opacity: 1 }}>
                     <canvas ref={canvasRef} />
                     <video ref={videoRef} muted playsInline />
-                    <div id="hidden-iframe-container" style={{ width: '1080px', height: '1920px' }}>
-                        <iframe ref={iframeRef} srcDoc={htmlContent} style={{ width: '100%', height: '100%', border: 'none' }} />
-                    </div>
                     {/* Synchronous React Subtitle Renderer */}
                     <SubtitleRenderer currentTime={exportTime} srtData={srtData || []} layoutConfig={layoutConfig} />
                 </div>

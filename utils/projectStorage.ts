@@ -1,27 +1,7 @@
 // Project Storage System - Save and load your reel projects
 
-export interface SavedProject {
-    id: string;
-    name: string;
-    createdAt: number;
-    updatedAt: number;
-    thumbnail?: string; // Base64 screenshot
-
-    // Content
-    html: string;
-    layoutConfig: any[];
-    srtText: string;
-    topicContext: string;
-
-    // Settings
-    bgMusicName?: string;
-    bgMusicVolume: number;
-
-    // Metadata
-    videoFileName?: string;
-    duration?: number;
-    tags?: string[];
-}
+import { SavedProject } from '../types';
+export type { SavedProject };
 
 const STORAGE_KEY = 'reel_composer_projects';
 const MAX_PROJECTS = 50; // Limit to prevent storage overflow
@@ -161,12 +141,12 @@ export const importProjectFromFile = async (file: File): Promise<SavedProject> =
 // Search projects
 export const searchProjects = (query: string): SavedProject[] => {
     const projects = getAllProjects();
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = (query || '').toLowerCase(); // Safety check
 
     return projects.filter(p =>
-        p.name.toLowerCase().includes(lowerQuery) ||
-        p.topicContext.toLowerCase().includes(lowerQuery) ||
-        p.tags?.some(tag => tag.toLowerCase().includes(lowerQuery))
+        (p.name && p.name.toLowerCase().includes(lowerQuery)) ||
+        (p.topicContext && p.topicContext.toLowerCase().includes(lowerQuery)) ||
+        (p.tags && p.tags.some(tag => tag && tag.toLowerCase().includes(lowerQuery)))
     );
 };
 

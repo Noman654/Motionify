@@ -33,44 +33,65 @@ ipcMain.handle('init-overlay-window', async (event, { htmlContent, width, height
                 offscreen: true,
                 nodeIntegration: false,
                 contextIsolation: true,
-                webSecurity: false, // Allow loading cross-origin resources
+                webSecurity: false, // Allow loading cross-origin resources (fonts, CDNs)
             }
         });
 
         // Enable offscreen rendering for consistent capture
         overlayWindow.webContents.setFrameRate(60);
 
-        // Load the HTML content - wrap it to ensure proper sizing
-        const wrappedHtml = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    html, body { 
-                        width: ${width}px; 
-                        height: ${height}px; 
-                        overflow: hidden;
-                        background: transparent;
-                    }
-                </style>
-            </head>
-            <body>
-                ${htmlContent}
-            </body>
-            </html>
-        `;
+        // Detect if htmlContent is already a complete HTML document
+        const isCompleteDoc = htmlContent.trim().toLowerCase().startsWith('<!doctype') ||
+                              htmlContent.trim().toLowerCase().startsWith('<html');
 
-        await overlayWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(wrappedHtml)}`);
+        let finalHtml;
+        if (isCompleteDoc) {
+            // Inject sizing overrides into the existing document
+            const sizeOverride = `<style>html,body{width:${width}px;height:${height}px;overflow:hidden;margin:0;padding:0;}</style>`;
+            // Insert after <head> if present, otherwise prepend
+            if (htmlContent.includes('<head>')) {
+                finalHtml = htmlContent.replace('<head>', '<head>' + sizeOverride);
+            } else {
+                finalHtml = sizeOverride + htmlContent;
+            }
+        } else {
+            // Wrap in a full HTML shell
+            finalHtml = `<!DOCTYPE html><html><head><meta charset="utf-8">
+                <style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:${width}px;height:${height}px;overflow:hidden;background:transparent;}</style>
+                </head><body>${htmlContent}</body></html>`;
+        }
 
-        // Wait for content to fully load (including external resources)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await overlayWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(finalHtml)}`);
+
+        // Wait for content to fully load (including external resources like fonts/CDNs)
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         console.log('Overlay window initialized:', width, 'x', height);
         return { success: true, width, height };
     } catch (err) {
         console.error('Failed to init overlay window:', err);
+        return { success: false, error: err.message };
+    }
+});
+
+// Resize the overlay window (e.g. when layout mode changes during export)
+ipcMain.handle('resize-overlay-window', async (event, { width, height }) => {
+    try {
+        if (!overlayWindow || overlayWindow.isDestroyed()) {
+            return { success: false, error: 'No overlay window' };
+        }
+        overlayWindow.setSize(width, height);
+        // Also update the DOM sizing
+        await overlayWindow.webContents.executeJavaScript(`
+            document.documentElement.style.width = '${width}px';
+            document.documentElement.style.height = '${height}px';
+            document.body.style.width = '${width}px';
+            document.body.style.height = '${height}px';
+        `);
+        // Small delay for layout reflow
+        await new Promise(resolve => setTimeout(resolve, 16));
+        return { success: true };
+    } catch (err) {
         return { success: false, error: err.message };
     }
 });
@@ -82,16 +103,15 @@ ipcMain.handle('capture-overlay-frame', async (event, { time }) => {
             throw new Error('Overlay window not initialized');
         }
 
-        // Update the time in the overlay (if there's any time-based animation)
+        // Sync time using postMessage (matches the GSAP listener pattern in generated HTML)
         await overlayWindow.webContents.executeJavaScript(`
-            if (window.updateTime) window.updateTime(${time});
-            window.dispatchEvent(new CustomEvent('timeupdate', { detail: { time: ${time} } }));
+            window.postMessage({ type: 'timeupdate', time: ${time} }, '*');
         `);
 
-        // Small delay to allow any animations to update
-        await new Promise(resolve => setTimeout(resolve, 16)); // ~1 frame at 60fps
+        // Small delay to allow GSAP animations to update
+        await new Promise(resolve => setTimeout(resolve, 16));
 
-        // Capture the full page
+        // Capture the full page via Chromium's native renderer
         const image = await overlayWindow.webContents.capturePage();
 
         // Return as PNG buffer for maximum quality (lossless)
@@ -125,8 +145,9 @@ function createWindow() {
         webPreferences: {
             preload: path.join(__dirname, 'preload.cjs'),
             nodeIntegration: false,
-            contextIsolation: true,
-            webSecurity: false
+            contextIsolation: true
+            // webSecurity left at default (true) for the main window.
+            // The offscreen overlay window uses webSecurity:false for cross-origin resources.
         },
         titleBarStyle: 'hiddenInset',
     });
@@ -154,6 +175,16 @@ function createWindow() {
 
 let renderStream = null;
 let tempVideoPath = null;
+let pass1FinishedPromise = null; // Promise that resolves when Pass 1 FFmpeg finishes
+let tempFilePaths = []; // Track all temp files for cleanup
+
+// Cleanup helper — removes all tracked temp files
+function cleanupTempFiles() {
+    for (const p of tempFilePaths) {
+        try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (e) { /* ignore */ }
+    }
+    tempFilePaths = [];
+}
 
 // Pass 1: Start video-only render (no audio)
 ipcMain.handle('start-render', async (event, { width, height, fps }) => {
@@ -161,34 +192,40 @@ ipcMain.handle('start-render', async (event, { width, height, fps }) => {
         try {
             // Create temp file for video-only output
             tempVideoPath = path.join(os.tmpdir(), `reel_temp_${Date.now()}.mp4`);
+            tempFilePaths.push(tempVideoPath);
             renderStream = new require('stream').PassThrough();
 
-            ffmpeg(renderStream)
-                .inputFormat('image2pipe')
-                .inputOptions([
-                    `-r ${fps}`,
-                    '-f image2pipe',
-                    '-vcodec mjpeg'
-                ])
-                .outputOptions([
-                    '-c:v libx264',
-                    '-pix_fmt yuv420p',
-                    '-preset fast',
-                    '-crf 23'
-                ])
-                .save(tempVideoPath)
-                .on('start', (cmd) => {
-                    console.log('FFmpeg Pass 1 Started:', cmd);
-                    resolve({ status: 'started', tempPath: tempVideoPath });
-                })
-                .on('error', (err) => {
-                    console.error('FFmpeg Error:', err);
-                    if (renderStream) renderStream.end();
-                    reject(err.message);
-                })
-                .on('end', () => {
-                    console.log('FFmpeg Pass 1 Finished (Video Only)');
-                });
+            // Create a Promise that resolves when Pass 1 FFmpeg encoding finishes
+            pass1FinishedPromise = new Promise((resolvePass1, rejectPass1) => {
+                ffmpeg(renderStream)
+                    .inputFormat('image2pipe')
+                    .inputOptions([
+                        `-r ${fps}`,
+                        '-f image2pipe',
+                        '-vcodec mjpeg'
+                    ])
+                    .outputOptions([
+                        '-c:v libx264',
+                        '-pix_fmt yuv420p',
+                        '-preset fast',
+                        '-crf 23'
+                    ])
+                    .save(tempVideoPath)
+                    .on('start', (cmd) => {
+                        console.log('FFmpeg Pass 1 Started:', cmd);
+                        resolve({ status: 'started', tempPath: tempVideoPath });
+                    })
+                    .on('error', (err) => {
+                        console.error('FFmpeg Pass 1 Error:', err);
+                        if (renderStream) renderStream.end();
+                        rejectPass1(err);
+                        reject(err.message);
+                    })
+                    .on('end', () => {
+                        console.log('FFmpeg Pass 1 Finished (Video Only)');
+                        resolvePass1();
+                    });
+            });
 
         } catch (e) {
             reject(e.message);
@@ -207,84 +244,93 @@ ipcMain.handle('write-frame', async (event, buffer) => {
 
 // Pass 2: End video stream and merge with audio
 ipcMain.handle('end-render', async (event, { originalVideoPath, bgMusicPath, bgMusicVolume, outputPath }) => {
+    // End the frame input stream
+    if (renderStream) {
+        renderStream.end();
+    }
+
+    // Wait for Pass 1 FFmpeg to actually finish encoding (event-driven, not a timer)
+    try {
+        if (pass1FinishedPromise) {
+            console.log('Waiting for Pass 1 to finish...');
+            await pass1FinishedPromise;
+        }
+    } catch (err) {
+        console.error('Pass 1 failed, cannot proceed to Pass 2:', err);
+        cleanupTempFiles();
+        throw new Error('Pass 1 encoding failed: ' + (err.message || err));
+    }
+
+    console.log('Starting Pass 2: Audio Merge');
+    console.log('Temp Video:', tempVideoPath);
+    console.log('Original Audio Source:', originalVideoPath);
+    console.log('Output:', outputPath);
+
     return new Promise((resolve, reject) => {
-        if (renderStream) {
-            renderStream.end();
+        const command = ffmpeg();
+
+        // Input 1: Temp video (frames we rendered)
+        command.input(tempVideoPath);
+
+        // Input 2: Original video (for audio)
+        if (originalVideoPath && fs.existsSync(originalVideoPath)) {
+            command.input(originalVideoPath);
         }
 
-        // Wait a bit for Pass 1 to finish writing
-        setTimeout(() => {
-            console.log('Starting Pass 2: Audio Merge');
-            console.log('Temp Video:', tempVideoPath);
-            console.log('Original Audio Source:', originalVideoPath);
-            console.log('Output:', outputPath);
+        // Input 3: Background music (optional)
+        if (bgMusicPath && fs.existsSync(bgMusicPath)) {
+            command.input(bgMusicPath);
+        }
 
-            const command = ffmpeg();
+        // Build filter complex for audio mixing
+        let filterComplex = '';
+        let audioMap = '';
 
-            // Input 1: Temp video (frames we rendered)
-            command.input(tempVideoPath);
+        if (originalVideoPath && bgMusicPath) {
+            // Mix original audio [1:a] with bg music [2:a]
+            const vol = bgMusicVolume || 0.2;
+            filterComplex = `[1:a]volume=1.0[a1];[2:a]volume=${vol}[a2];[a1][a2]amix=inputs=2:duration=shortest[aout]`;
+            audioMap = '[aout]';
+        } else if (originalVideoPath) {
+            // Just use original video audio
+            audioMap = '1:a?';
+        }
 
-            // Input 2: Original video (for audio)
-            if (originalVideoPath && fs.existsSync(originalVideoPath)) {
-                command.input(originalVideoPath);
-            }
+        command
+            .outputOptions([
+                '-c:v copy',  // Copy video stream (no re-encode)
+                '-c:a aac',
+                '-b:a 192k',
+                '-shortest',
+                '-movflags +faststart'
+            ]);
 
-            // Input 3: Background music (optional)
-            if (bgMusicPath && fs.existsSync(bgMusicPath)) {
-                command.input(bgMusicPath);
-            }
+        if (filterComplex) {
+            command.complexFilter(filterComplex);
+            command.outputOptions(['-map', '0:v', '-map', audioMap]);
+        } else if (audioMap) {
+            command.outputOptions(['-map', '0:v', '-map', audioMap]);
+        }
 
-            // Build filter complex for audio mixing
-            let filterComplex = '';
-            let audioMap = '';
-
-            if (originalVideoPath && bgMusicPath) {
-                // Mix original audio [1:a] with bg music [2:a]
-                const vol = bgMusicVolume || 0.2;
-                filterComplex = `[1:a]volume=1.0[a1];[2:a]volume=${vol}[a2];[a1][a2]amix=inputs=2:duration=shortest[aout]`;
-                audioMap = '[aout]';
-            } else if (originalVideoPath) {
-                // Just use original video audio
-                audioMap = '1:a?';
-            }
-
-            command
-                .outputOptions([
-                    '-c:v copy',  // Copy video stream (no re-encode)
-                    '-c:a aac',
-                    '-b:a 192k',
-                    '-shortest',
-                    '-movflags +faststart'
-                ]);
-
-            if (filterComplex) {
-                command.complexFilter(filterComplex);
-                command.outputOptions(['-map', '0:v', '-map', audioMap]);
-            } else if (audioMap) {
-                command.outputOptions(['-map', '0:v', '-map', audioMap]);
-            }
-
-            command
-                .save(outputPath)
-                .on('start', (cmd) => {
-                    console.log('FFmpeg Pass 2 Started:', cmd);
-                })
-                .on('progress', (progress) => {
-                    console.log('Processing: ' + progress.percent + '% done');
-                    event.sender.send('ffmpeg-progress', { percent: progress.percent, phase: 'merging' });
-                })
-                .on('error', (err) => {
-                    console.error('FFmpeg Pass 2 Error:', err);
-                    reject(err.message);
-                })
-                .on('end', () => {
-                    console.log('FFmpeg Pass 2 Finished - Export Complete!');
-                    // Cleanup temp file
-                    try { fs.unlinkSync(tempVideoPath); } catch (e) { }
-                    resolve({ status: 'done', outputPath });
-                });
-
-        }, 1000); // Wait for Pass 1 to flush
+        command
+            .save(outputPath)
+            .on('start', (cmd) => {
+                console.log('FFmpeg Pass 2 Started:', cmd);
+            })
+            .on('progress', (progress) => {
+                console.log('Processing: ' + progress.percent + '% done');
+                event.sender.send('ffmpeg-progress', { percent: progress.percent, phase: 'merging' });
+            })
+            .on('error', (err) => {
+                console.error('FFmpeg Pass 2 Error:', err);
+                cleanupTempFiles();
+                reject(err.message);
+            })
+            .on('end', () => {
+                console.log('FFmpeg Pass 2 Finished - Export Complete!');
+                cleanupTempFiles();
+                resolve({ status: 'done', outputPath });
+            });
     });
 });
 
@@ -318,10 +364,21 @@ ipcMain.handle('save-inline-html', async (event, htmlContent) => {
     }
 });
 
+// Just return the string, don't save
+ipcMain.handle('get-inline-html', async (event, htmlContent) => {
+    try {
+        const inlinedHtml = await processHtml(htmlContent);
+        return { success: true, html: inlinedHtml };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
 // Save temp file from renderer (for original video/audio)
 ipcMain.handle('save-temp-file', async (event, { buffer, extension }) => {
     const tempPath = path.join(os.tmpdir(), `reel_asset_${Date.now()}.${extension}`);
     fs.writeFileSync(tempPath, Buffer.from(buffer));
+    tempFilePaths.push(tempPath); // Track for cleanup
     return tempPath;
 });
 

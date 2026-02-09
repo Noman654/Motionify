@@ -30,6 +30,7 @@ interface EditorPanelProps {
   modelName: string;
   setModelName: (name: string) => void;
   onSaveApiKey: () => void;
+  onPreviewOverride?: (html: string | null) => void;
 }
 
 export const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -49,18 +50,21 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   setApiKey,
   modelName,
   setModelName,
-  onSaveApiKey
+  onSaveApiKey,
+  onPreviewOverride
 }) => {
   const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio'>('config');
   const [localConfig, setLocalConfig] = useState(JSON.stringify(content.layoutConfig, null, 2));
   const [localHtml, setLocalHtml] = useState(content.html);
+  const [offlineHtml, setOfflineHtml] = useState<string | null>(null); // New state for inlined code
+  const [viewMode, setViewMode] = useState<'original' | 'offline'>('original'); // Toggle state
   const [isExtracting, setIsExtracting] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isGeneratingOffline, setIsGeneratingOffline] = useState(false); // Loading state for inline generation
 
   // Search functionality
   const [searchTerm, setSearchTerm] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
-  const htmlTextareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Key Editing State
   const [isEditingKey, setIsEditingKey] = useState(false);
@@ -69,14 +73,42 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
 
-  const isDefaultKey = apiKey === APP_CONFIG.DEFAULT_API_KEY;
+  const isDefaultKey = !apiKey || apiKey === APP_CONFIG.DEFAULT_API_KEY;
   const hasContent = content.html && content.html.length > 50; // heuristic check
 
   // Sync local state when content prop updates (e.g. after AI generation)
   useEffect(() => {
     setLocalConfig(JSON.stringify(content.layoutConfig, null, 2));
     setLocalHtml(content.html);
+    // Invalidate offline cache on external update
+    setOfflineHtml(null);
+    if (viewMode === 'offline') setViewMode('original');
   }, [content]);
+
+  // Sync Preview Logic
+  useEffect(() => {
+    if (!onPreviewOverride) return;
+
+    if (viewMode === 'offline' && offlineHtml) {
+      onPreviewOverride(offlineHtml);
+    } else {
+      onPreviewOverride(null);
+    }
+  }, [viewMode, offlineHtml, onPreviewOverride]);
+
+  // Handle Local HTML Change (Invalidate Offline)
+  const handleLocalHtmlChange = (newHtml: string) => {
+    setLocalHtml(newHtml);
+    if (offlineHtml) {
+      setOfflineHtml(null); // Invalidate because source changed
+    }
+  };
+
+  // Handle Offline HTML Change
+  const handleOfflineHtmlChange = (newHtml: string) => {
+    setOfflineHtml(newHtml);
+    // Preview effect will pick this up automatically
+  };
 
   // Init temp key state when editing starts
   useEffect(() => {
@@ -152,15 +184,19 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   };
 
   const handleSearch = () => {
-    if (!searchTerm || !htmlTextareaRef.current) return;
+    if (!searchTerm) return;
 
-    const textarea = htmlTextareaRef.current;
+    // react-simple-code-editor creates a textarea with this id
+    const textarea = document.getElementById('html-editor-textarea') as HTMLTextAreaElement | null;
+    if (!textarea) return;
+
     const text = textarea.value;
     const index = text.toLowerCase().indexOf(searchTerm.toLowerCase());
 
     if (index !== -1) {
       textarea.focus();
       textarea.setSelectionRange(index, index + searchTerm.length);
+      // Scroll to approximate position
       textarea.scrollTop = (index / text.length) * textarea.scrollHeight;
     }
   };
@@ -215,6 +251,29 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       return highlight(code, languages.javascript, 'javascript');
     } catch (e) {
       return code;
+    }
+  };
+
+  /* ... (generating offline) ... */
+  const generateOfflineHtml = async () => {
+    if (window.electron?.getInlineHtml) {
+      setIsGeneratingOffline(true);
+      try {
+        const result = await window.electron.getInlineHtml(localHtml);
+        if (result.success) {
+          setOfflineHtml(result.html);
+          setViewMode('offline');
+        } else {
+          alert('Failed to generate offline HTML');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error generating offline HTML');
+      } finally {
+        setIsGeneratingOffline(false);
+      }
+    } else {
+      alert('This feature requires the Desktop App.');
     }
   };
 
@@ -321,19 +380,42 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 Search
               </button>
 
-              <button
-                onClick={() => setLocalHtml(formatHtml(localHtml))}
-                className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs flex items-center gap-1.5 transition-colors"
-                title="Format HTML"
-              >
-                <Code size={14} />
-                Format
-              </button>
+              <div className="h-4 w-px bg-gray-700 mx-1" />
+
+              <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
+                <button
+                  onClick={() => setViewMode('original')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'original' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-300'}`}
+                >
+                  Original
+                </button>
+                <button
+                  onClick={() => {
+                    if (!offlineHtml) generateOfflineHtml();
+                    else setViewMode('offline');
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${viewMode === 'offline' ? 'bg-blue-900/50 text-blue-200 border border-blue-500/30' : 'text-gray-400 hover:text-gray-300'}`}
+                >
+                  {isGeneratingOffline ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Zap size={10} />}
+                  Offline Version
+                </button>
+              </div>
 
               <div className="flex-1"></div>
 
+              {viewMode === 'original' && (
+                <button
+                  onClick={() => setLocalHtml(formatHtml(localHtml))}
+                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs flex items-center gap-1.5 transition-colors"
+                  title="Format HTML"
+                >
+                  <Code size={14} />
+                  Format
+                </button>
+              )}
+
               <span className="text-[10px] text-gray-500">
-                {localHtml.split('\n').length} lines
+                {(viewMode === 'original' ? localHtml : (offlineHtml || '')).split('\n').length} lines
               </span>
             </div>
 
@@ -358,21 +440,27 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             )}
 
             {/* HTML Visual Editor */}
-            <div className="flex-1 visual-editor-container border border-gray-800">
-              <div className="prism-code h-full">
-                <Editor
-                  value={localHtml}
-                  onValueChange={setLocalHtml}
-                  highlight={highlightHTML}
-                  padding={16}
-                  style={{
-                    minHeight: '100%',
-                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                    background: '#0a0a0f'
-                  }}
-                />
+            <div className="flex-1 visual-editor-container border border-gray-800 relative overflow-hidden flex flex-col">
+              {/* Scroll Container */}
+              <div className="flex-1 overflow-auto custom-scrollbar">
+                <div className="prism-code min-h-full">
+                  <Editor
+                    value={viewMode === 'original' ? localHtml : (offlineHtml || 'Generating offline version...')}
+                    onValueChange={viewMode === 'original' ? handleLocalHtmlChange : handleOfflineHtmlChange}
+                    highlight={highlightHTML}
+                    padding={16}
+                    style={{
+                      minHeight: '100%',
+                      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      background: '#0a0a0f',
+                      pointerEvents: isGeneratingOffline ? 'none' : 'auto', // Disable only when generating
+                      opacity: isGeneratingOffline ? 0.8 : 1
+                    }}
+                    textareaId="html-editor-textarea"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -418,7 +506,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     className="text-xs text-gray-400 hover:text-white p-1 hover:bg-gray-700 rounded transition-colors flex items-center gap-1"
                     title="Edit API Key"
                   >
-                    <Edit2 size={12} /> {isDefaultKey ? "Upgrade Key" : "Edit"}
+                    <Edit2 size={12} /> {isDefaultKey ? "Add Key" : "Edit"}
                   </button>
                 )}
               </div>
@@ -428,9 +516,9 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-center bg-gray-950/50 p-2 rounded border border-gray-800">
                     <div className="flex items-center gap-2 text-xs text-gray-300">
-                      <Key size={12} className={isDefaultKey ? "text-green-500" : "text-blue-500"} />
-                      <span className={isDefaultKey ? "text-green-400 font-semibold" : ""}>
-                        {isDefaultKey ? 'Free Tier' : (apiKey ? `••••••••${apiKey.slice(-4)}` : 'Not Configured')}
+                      <Key size={12} className={isDefaultKey ? "text-yellow-500" : "text-blue-500"} />
+                      <span className={isDefaultKey ? "text-yellow-400 font-semibold" : ""}>
+                        {isDefaultKey ? 'No Key Set' : `••••••••${apiKey.slice(-4)}`}
                       </span>
                     </div>
                     <div className="text-[10px] bg-purple-900/40 text-purple-300 px-2 py-0.5 rounded flex items-center gap-1 max-w-[150px] truncate" title={modelName}>
@@ -443,8 +531,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     onClick={onGenerate}
                     disabled={isGenerating || !apiKey}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded font-bold transition-all mt-2 ${!apiKey
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-700 to-pink-700 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-900/20'
+                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-700 to-pink-700 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-900/20'
                       }`}
                   >
                     {isGenerating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={14} />}
@@ -462,7 +550,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           <ExternalLink size={10} /> Get Free Key
                         </a>
                         {isDefaultKey && (
-                          <span className="text-[10px] text-green-400">Currently on Free Tier</span>
+                          <span className="text-[10px] text-yellow-400">Key required for generation</span>
                         )}
                       </div>
                     </div>
@@ -516,7 +604,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </button>
                   </div>
 
-                  {/* Option to revert to Free Tier */}
+                  {/* Option to clear custom key */}
                   {!isDefaultKey && (
                     <div className="pt-2 text-center border-t border-gray-700">
                       <button
@@ -526,9 +614,9 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           setTimeout(() => onSaveApiKey(), 0);
                           setIsEditingKey(false);
                         }}
-                        className="text-[10px] text-green-400 hover:text-green-300 underline"
+                        className="text-[10px] text-red-400 hover:text-red-300 underline"
                       >
-                        Revert to Free Tier (Default Key)
+                        Remove Custom Key
                       </button>
                     </div>
                   )}

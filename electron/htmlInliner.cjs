@@ -1,22 +1,29 @@
-const fs = require('fs');
+const cheerio = require('cheerio');
 const path = require('path');
+const fetch = require('node-fetch');
 
-// Helper to fetch resource using global fetch (Node 18+)
+// Headers to mimic a real browser (Crucial for Google Fonts)
+const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+};
+
+// Helper: Fetch resource with headers
 async function fetchResource(url) {
     if (!url.startsWith('http')) return null;
 
     try {
         console.log('Downloading:', url);
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: HEADERS });
         if (!response.ok) {
-            console.warn(`Failed to download ${url}: ${response.status} ${response.statusText}`);
+            console.warn(`Failed to download ${url}: ${response.status}`);
             return null;
         }
-        const arrayBuffer = await response.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+        return Buffer.from(await response.arrayBuffer());
     } catch (e) {
-        console.error(`Error downloading ${url}:`, e);
-        return null; // Return null on failure so we don't break the whole process
+        console.error(`Error downloading ${url}:`, e.message);
+        return null; // Fail gracefully
     }
 }
 
@@ -27,10 +34,8 @@ function getMimeType(url) {
             '.woff2': 'font/woff2',
             '.woff': 'font/woff',
             '.ttf': 'font/ttf',
-            '.otf': 'font/otf',
             '.css': 'text/css',
             '.js': 'application/javascript',
-            '.json': 'application/json',
             '.png': 'image/png',
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
@@ -39,132 +44,115 @@ function getMimeType(url) {
             '.webp': 'image/webp'
         };
         return map[ext] || 'application/octet-stream';
-    } catch (e) {
-        return 'application/octet-stream';
-    }
+    } catch (e) { return 'application/octet-stream'; }
 }
 
 function toBase64(buffer, mime) {
     return `data:${mime};base64,${buffer.toString('base64')}`;
 }
 
+// Inline resources inside CSS (fonts, images)
 async function inlineCss(cssContent, baseUrl) {
     let newCss = cssContent;
+    const urlPattern = /url\(\s*['"]?([^'")]+)['"]?\s*\)/g;
 
-    // Find url(...) patterns
-    const urlPattern = /url\(['"]?([^'")]+)['"]?\)/g;
-
-    // Convert iterators to array to handle async replacement
+    // Find all unique URLs
     const matches = [...newCss.matchAll(urlPattern)];
+    const uniqueUrls = [...new Set(matches.map(m => m[1]))];
 
-    // Process sequentially to avoid race conditions in simple string replacement
-    for (const m of matches) {
-        const fullMatch = m[0];
-        const rawUrl = m[1];
-
-        if (rawUrl.startsWith('data:')) continue;
+    for (const rawUrl of uniqueUrls) {
+        if (rawUrl.startsWith('data:') || rawUrl.startsWith('#')) continue;
 
         try {
+            // Resolve relative URLs
             const absoluteUrl = new URL(rawUrl, baseUrl).href;
+
             const buffer = await fetchResource(absoluteUrl);
             if (buffer) {
                 const mime = getMimeType(absoluteUrl);
                 const dataUri = toBase64(buffer, mime);
 
-                // Replace globally (careful with collision, but in CSS usually safe)
-                // Use split/join for global replacement of the specific string
-                newCss = newCss.split(rawUrl).join(dataUri);
-                console.log('Inlined CSS resource:', rawUrl);
+                // Replace all occurrences of this URL in the CSS
+                const escapedUrl = rawUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const replaceRegex = new RegExp(escapedUrl, 'g');
+                newCss = newCss.replace(replaceRegex, dataUri);
+
+                console.log('  ✓ Inlined CSS resource:', path.basename(absoluteUrl));
             }
         } catch (e) {
-            console.warn('Failed to inline CSS resource:', rawUrl, e);
+            console.warn('  ⚠ Failed to inline CSS asset:', rawUrl);
         }
     }
-
     return newCss;
 }
 
 async function processHtml(htmlContent) {
-    let processedHtml = htmlContent;
+    // Load HTML into Cheerio (like BeautifulSoup)
+    const $ = cheerio.load(htmlContent);
+    const baseUrl = 'http://localhost'; // Fallback base
 
-    // 1. Google Fonts & CSS Links
-    // Match <link rel="stylesheet" href="...">
-    const linkPattern = /<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g;
-    const links = [...processedHtml.matchAll(linkPattern)];
+    console.log('--- STARTING ROBUST INLINING (Cheerio) ---');
 
-    for (const m of links) {
-        const wholeTag = m[0];
-        const href = m[1];
-
-        console.log('Processing CSS Link:', href);
-        try {
+    const links = $('link[rel="stylesheet"]').toArray();
+    for (const link of links) {
+        const $link = $(link);
+        const href = $link.attr('href');
+        if (href && !href.startsWith('data:')) {
+            console.log('📦 Processing CSS:', href);
             const buffer = await fetchResource(href);
             if (buffer) {
                 let cssText = buffer.toString('utf-8');
-                // Inline resources inside the CSS (fonts, images)
                 cssText = await inlineCss(cssText, href);
-
-                const styleTag = `<style>\n/* Inlined from ${href} */\n${cssText}\n</style>`;
-                processedHtml = processedHtml.replace(wholeTag, styleTag);
+                // Replace <link> with <style>
+                const $style = $('<style>').text(`/* Inlined from ${href} */\n${cssText}`);
+                $link.replaceWith($style);
             }
-        } catch (e) { console.error(e); }
+        }
     }
 
-    // 2. Scripts
-    // Match <script src="..."></script>
-    const scriptPattern = /<script[^>]*src="([^"]+)"[^>]*><\/script>/g;
-    const scripts = [...processedHtml.matchAll(scriptPattern)];
-
-    for (const m of scripts) {
-        const wholeTag = m[0];
-        const src = m[1];
-
-        console.log('Processing Script:', src);
-        try {
+    const scripts = $('script[src]').toArray();
+    for (const script of scripts) {
+        const $script = $(script);
+        const src = $script.attr('src');
+        if (src && !src.startsWith('data:')) {
+            console.log('📦 Processing Script:', src);
             const buffer = await fetchResource(src);
             if (buffer) {
                 const jsText = buffer.toString('utf-8');
-                // Escape simple </script> occurrences in string literals? 
-                // Rare for logic, but possible. For now raw import.
-                const scriptTag = `<script>\n/* Inlined from ${src} */\n${jsText}\n</script>`;
-                processedHtml = processedHtml.replace(wholeTag, scriptTag);
+                $script.removeAttr('src');
+                $script.text(`/* Inlined from ${src} */\n${jsText}`);
             }
-        } catch (e) { console.error(e); }
+        }
     }
 
-    // 3. Images
-    // Match <img src="...">
-    const imgPattern = /<img[^>]*src="([^"]+)"[^>]*>/g;
-    const images = [...processedHtml.matchAll(imgPattern)];
-
-    for (const m of images) {
-        const wholeTag = m[0];
-        const src = m[1];
-
-        if (src.startsWith('data:')) continue;
-
-        console.log('Processing Image:', src);
-        try {
+    const images = $('img[src]').toArray();
+    for (const img of images) {
+        const $img = $(img);
+        const src = $img.attr('src');
+        if (src && !src.startsWith('data:')) {
+            console.log('📦 Processing Image:', src);
             const buffer = await fetchResource(src);
             if (buffer) {
                 const mime = getMimeType(src);
                 const dataUri = toBase64(buffer, mime);
-
-                // Construct new tag to be safe
-                // const newTag = wholeTag.replace(src, dataUri); 
-                // replace specifically the src value part
-                // We utilize the fact that we matched `src="([^"]+)"`
-                // But finding exact substring replacement is safer than reconstructing if attributes are complex
-                const srcAttr = `src="${src}"`;
-                const newSrcAttr = `src="${dataUri}"`;
-                const newTag = wholeTag.replace(srcAttr, newSrcAttr);
-
-                processedHtml = processedHtml.replace(wholeTag, newTag);
+                $img.attr('src', dataUri);
             }
-        } catch (e) { console.error(e); }
+        }
     }
 
-    return processedHtml;
+    // Process inline style blocks
+    const styles = $('style').toArray();
+    for (const style of styles) {
+        const $style = $(style);
+        let cssText = $style.html();
+        if (cssText && cssText.includes('url(')) {
+            console.log('📦 Processing Inline Style Block');
+            const newCss = await inlineCss(cssText, 'http://localhost');
+            $style.text(newCss);
+        }
+    }
+
+    return $.html();
 }
 
 module.exports = { processHtml };

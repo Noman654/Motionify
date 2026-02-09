@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileVideo, FileText, ArrowRight, Download, ExternalLink, Music, Wand2, Mic, Play, FileAudio, Disc, Video, Clapperboard, Sparkles, CheckSquare, Edit2, Save, X, Headphones, Trash2, ArrowLeft, BookOpen, Globe, Github, Linkedin, Instagram, Facebook, Folder } from 'lucide-react';
+import { Upload, FileVideo, FileText, ArrowRight, Download, ExternalLink, Music, Wand2, Mic, Play, FileAudio, Disc, Video, Clapperboard, Sparkles, CheckSquare, Edit2, Save, X, Headphones, Trash2, ArrowLeft, Github, Folder } from 'lucide-react';
 import { extractWavFromVideo } from '../utils/audioHelpers';
 import { generateSRT, generateTTS } from '../services/geminiService';
 
@@ -232,7 +232,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         const hasSource = activeTab === 'video' ? !!videoFile : (!!audioFile || !!generatedAudioFile);
 
         return (
-            <div className={`border-2 border-dashed rounded-2xl transition-all h-64 relative overflow-hidden flex flex-col ${currentSrt ? 'border-green-500 bg-green-900/10' : 'border-gray-700 bg-gray-900/80'}`}>
+            <div className={`border-2 border-dashed rounded-2xl transition-all h-64 relative overflow-hidden flex flex-col ${currentSrt ? 'border-green-500/80 bg-green-900/10 ring-1 ring-green-500/20' : 'border-gray-700 bg-gray-900/60 hover:border-green-500/50 hover:bg-gray-900/80'}`}>
                 {!isEditingSrt ? (
                     <>
                         <input
@@ -385,7 +385,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                         </button>
                     </div>
 
-                    <div className="w-full bg-gray-900/40 border border-gray-800/50 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-2xl">
+                    <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-xl shadow-black/20 ring-1 ring-white/5">
                         {activeTab === 'video' ? (
                             // --- VIDEO UPLOAD MODE ---
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
@@ -393,7 +393,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                                         <Clapperboard size={14} /> Source Footage
                                     </h3>
-                                    <div className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-all h-64 relative overflow-hidden group ${videoFile ? 'border-purple-500 bg-purple-900/10' : 'border-gray-700 hover:border-purple-500/50 bg-gray-900/80'}`}>
+                                    <div className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-all h-64 relative overflow-hidden group ${videoFile ? 'border-purple-500/80 bg-purple-900/10 ring-1 ring-purple-500/20' : 'border-gray-700 bg-gray-900/60 hover:border-purple-500/60 hover:bg-gray-900/80'}`}>
                                         <input type="file" accept="video/*" onChange={handleVideoChange} className="hidden" id="video-upload" />
 
                                         {videoFile ? (
@@ -566,48 +566,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                 </div>
             </div>
 
-            {/* Footer - Fixed Bottom */}
-            <div className="border-t border-gray-800 bg-gray-950 p-8 w-full shrink-0 z-20">
-                <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-[2px]">
-                            <a href="https://prasannathapa.in" target="_blank">
-                                <img src="https://blog.prasannathapa.in/content/images/2024/12/Picsart_24-12-18_08-13-50-070.jpg" alt="Prasanna Thapa" className="rounded-full w-full h-full object-cover bg-black" />
-                            </a>
-                        </div>
-                        <div>
-                            <div className="font-bold text-white text-base text-xl">Prasanna Thapa</div>
-                            <div className="text-s text-gray-400 flex items-center gap-1.5">
-                                Technical Architect
-                                <div className="hidden md:block w-px h-4 bg-gray-700/50"></div>
-                                <a href="https://zoho.com" target="_blank">
-                                    <img src="https://www.zohowebstatic.com/sites/default/files/zoho_general_pages/zoho-logo-white.png" alt="Zoho" className="h-5" />
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap justify-center gap-4 items-center">
-                        <a href="https://blog.prasannathapa.in/reel-composer/" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-900/20 text-purple-400 hover:bg-purple-900/40 hover:text-white transition-colors text-sm font-medium border border-purple-500/30">
-                            <BookOpen size={14} /> The Philosophy
-                        </a>
-                        <a href="https://github.com/prasannathapa/reel-composer" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors text-sm font-medium border border-gray-700">
-                            <Github size={14} /> Source Code
-                        </a>
-                        <div className="hidden md:block w-px h-4 bg-gray-700/50"></div>
-                        <a href="https://prasannathapa.in/" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors" title="Website">
-                            <Globe size={20} />
-                        </a>
-                        <a href="https://github.com/prasannathapa" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors" title="GitHub">
-                            <Github size={20} />
-                        </a>
-                        <a href="https://www.linkedin.com/in/prasannathapa" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors" title="LinkedIn">
-                            <Linkedin size={20} />
-                        </a>
-                        <a href="https://instagram.com/prasanna_thapa" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-400 transition-colors" title="Instagram">
-                            <Instagram size={20} />
-                        </a>
-                    </div>
+            {/* Footer - Minimal, no person attribution */}
+            <div className="border-t border-gray-800 bg-gray-950/80 backdrop-blur-sm p-6 w-full shrink-0 z-20">
+                <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-gray-500">
+                    <span className="font-semibold text-gray-400">Reel Composer</span>
+                    <span className="hidden sm:inline w-px h-4 bg-gray-700/50" aria-hidden />
+                    <span>v1.2.5</span>
+                    <span className="hidden sm:inline w-px h-4 bg-gray-700/50" aria-hidden />
+                    <a href="https://github.com/prasannathapa/reel-composer" target="_blank" rel="noreferrer noopener" className="flex items-center gap-1.5 text-gray-500 hover:text-purple-400 transition-colors">
+                        <Github size={16} /> Source code
+                    </a>
                 </div>
             </div>
         </div>

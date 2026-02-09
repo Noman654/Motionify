@@ -108,19 +108,4 @@ You can configure this in two ways:
 
 ---
 
-## 👨‍💻 About the Author
-![Prasanna Thapa](https://prasannathapa.in/banner.jpg)
-**Prasanna Thapa**  
-*Technical Architect / Software Engineer at Zoho*
-
-I build tools that bridge the gap between creative expression and software engineering.
-
-*   🌐 **Website:** [prasannathapa.in](https://prasannathapa.in/)
-*   📝 **Blog:** [blog.prasannathapa.in](https://blog.prasannathapa.in)
-*   🐙 **GitHub:** [@prasannathapa](https://github.com/prasannathapa)
-*   💼 **LinkedIn:** [in/prasannathapa](https://www.linkedin.com/in/prasannathapa)
-*   📸 **Instagram:** [@prasanna_thapa](https://instagram.com/prasanna_thapa)
-
----
-
-*Built with ❤️ for creators.*
+*Built for creators.*

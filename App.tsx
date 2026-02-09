@@ -65,6 +65,8 @@ const App: React.FC = () => {
     const [showLibrary, setShowLibrary] = useState(false);
 
     // Manage Video Object URL
+    const [previewOverride, setPreviewOverride] = useState<string | null>(null);
+
     useEffect(() => {
         if (!videoFile) return;
         const newUrl = URL.createObjectURL(videoFile);
@@ -326,15 +328,15 @@ const App: React.FC = () => {
 
                         {/* Header (Simplified - Only show 'Change Key' button if not in UPLOAD/WELCOME to avoid duplication) */}
                         {!isFullScreen && appState !== AppState.UPLOAD && (
-                            <header className="h-16 border-b border-gray-800 flex items-center justify-between px-6 bg-black/50 backdrop-blur-sm z-10 shrink-0">
-                                <div className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
+                            <header className="h-14 border-b border-gray-800/80 flex items-center justify-between px-6 bg-gray-950/90 backdrop-blur-md z-10 shrink-0 shadow-lg shadow-black/20">
+                                <div className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
                                     Reel Composer
                                 </div>
                                 <div className="flex items-center gap-4 text-sm text-gray-400">
 
                                     <button
                                         onClick={handleResetAuth}
-                                        className="flex items-center gap-2 hover:text-white transition-colors"
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/80 transition-colors"
                                         title="Reset API Key"
                                     >
                                         <Key size={16} />
@@ -364,7 +366,7 @@ const App: React.FC = () => {
                                             setShowReplaceDialog(false);
                                             setIsAudioOnly(false); // Reset
                                         }}
-                                        className="hover:text-white transition-colors"
+                                        className="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/80 transition-colors"
                                     >
                                         New Project
                                     </button>
@@ -374,7 +376,7 @@ const App: React.FC = () => {
                                     {/* Projects Library Button */}
                                     <button
                                         onClick={() => setShowLibrary(true)}
-                                        className="flex items-center gap-2 hover:text-white transition-colors"
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/80 transition-colors"
                                         title="Browse saved projects"
                                     >
                                         <Folder size={16} />
@@ -402,7 +404,7 @@ const App: React.FC = () => {
                                                         alert('✅ Project AND video saved!');
                                                     }
                                                 }}
-                                                className="flex items-center gap-2 hover:text-green-400 transition-colors"
+                                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-green-400 hover:bg-gray-800/80 transition-colors"
                                                 title="Save current project"
                                             >
                                                 <Save size={16} />
@@ -535,7 +537,7 @@ const App: React.FC = () => {
                                             videoUrl={videoUrl}
                                             videoFile={videoFile}
                                             srtData={srtData}
-                                            htmlContent={generatedContent.html}
+                                            htmlContent={previewOverride || generatedContent.html}
                                             layoutConfig={generatedContent.layoutConfig}
                                             fullScreenMode={isFullScreen}
                                             toggleFullScreen={toggleFullScreen}
@@ -566,6 +568,7 @@ const App: React.FC = () => {
                                                 modelName={modelName}
                                                 setModelName={setModelName}
                                                 onSaveApiKey={saveApiKeyToStorage}
+                                                onPreviewOverride={setPreviewOverride}
                                             />
                                         </div>
                                     )}
@@ -581,8 +584,8 @@ const App: React.FC = () => {
 
                         {/* Replace Scene Dialog (Delayed Response) */}
                         {showReplaceDialog && (
-                            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                                <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+                            <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                                <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/80 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in ring-1 ring-white/5">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-green-500/20 text-green-400 rounded-lg">
@@ -649,14 +652,13 @@ const App: React.FC = () => {
                         }
 
                         // Load video if it exists!
+                        // Only call setVideoFile — the useEffect on videoFile
+                        // will handle URL.createObjectURL and cleanup automatically.
                         if (loadedVideo) {
                             setVideoFile(loadedVideo);
-                            setVideoUrl(URL.createObjectURL(loadedVideo));
-                            console.log('✅ Video loaded:', loadedVideo.name);
                         } else {
                             setVideoFile(null);
                             setVideoUrl('');
-                            console.log('⚠️ No video found');
                         }
 
                         setAppState(AppState.EDITOR);

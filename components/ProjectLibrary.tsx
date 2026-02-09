@@ -65,8 +65,8 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
     };
 
     return (
-        <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col">
+        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/80 rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col animate-scale-in ring-1 ring-white/5">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-800">
                     <div className="flex items-center justify-between mb-4">

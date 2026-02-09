@@ -51,16 +51,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6 relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-pink-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
+      {/* Background */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-900/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-pink-900/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.12] pointer-events-none" />
 
-      <div className="max-w-xl w-full bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 md:p-12 shadow-2xl relative z-10 animate-fade-in flex flex-col items-center">
-        
+      <div className="max-w-xl w-full glass-panel rounded-3xl p-8 md:p-12 shadow-2xl shadow-purple-900/10 relative z-10 animate-fade-in flex flex-col items-center ring-1 ring-white/5">
+        {/* Soft glow behind card */}
+        <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-xl -z-10 opacity-60" />
+
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 mb-8 shadow-2xl shadow-purple-900/50 rotate-3 hover:rotate-6 transition-transform duration-500">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 mb-8 shadow-xl shadow-purple-900/40 rotate-3 hover:rotate-6 hover:scale-105 transition-all duration-300">
             <PlayCircle className="text-white fill-white/20" size={48} />
           </div>
           <h1 className="text-5xl md:text-6xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-pink-200 tracking-tighter leading-tight">
@@ -69,9 +71,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
           <p className="text-gray-400 mt-6 text-xl font-light max-w-sm mx-auto leading-relaxed">
             AI-powered director for high-retention video content.
           </p>
-          <a href="https://blog.prasannathapa.in/reel-composer/" target="_blank" rel="noreferrer" className="inline-block mt-4 text-xs font-bold text-purple-400 hover:text-white uppercase tracking-widest border-b border-purple-500/30 hover:border-white transition-all pb-0.5">
-            Read The Philosophy
-          </a>
         </div>
 
         {/* API Key Form */}
@@ -106,10 +105,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
             <button
             onClick={handleValidation}
             disabled={isValidating}
-            className={`w-full py-5 rounded-2xl font-bold text-lg transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 ${
+            className={`w-full py-5 rounded-2xl font-bold text-lg transition-all shadow-xl flex items-center justify-center gap-3 active:scale-[0.99] ${
                 isValidating 
                 ? 'bg-gray-800 cursor-not-allowed text-gray-500' 
-                : 'bg-white text-black hover:bg-gray-100'
+                : 'bg-white text-black hover:bg-gray-100 hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)] hover:scale-[1.01]'
             }`}
             >
             {isValidating ? (

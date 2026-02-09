@@ -27,3 +27,28 @@ export enum AppState {
   EDITOR = 'EDITOR',
   PREVIEW = 'PREVIEW'
 }
+
+// Unified project storage interface (used by both projectStorage and projectStorageWithVideo)
+export interface SavedProject {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  thumbnail?: string;
+
+  // Content
+  html: string;
+  layoutConfig: LayoutConfigStep[];
+  srtText: string;
+  topicContext: string;
+
+  // Settings
+  bgMusicName?: string;
+  bgMusicVolume: number;
+
+  // Metadata
+  videoFileName?: string;
+  hasVideo?: boolean;
+  duration?: number;
+  tags?: string[];
+}
