@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { LayoutConfigStep, SRTItem } from '../types';
+import { LayoutConfigStep, SRTItem, MediaAsset } from '../types';
 import { Play, Pause, RefreshCw, Maximize, Minimize, Video, StopCircle, X, AlertTriangle, Monitor, Download } from 'lucide-react';
 import { ExportModal } from './ExportModal';
 
@@ -9,12 +9,15 @@ interface ReelPlayerProps {
   srtData: SRTItem[];
   htmlContent: string;
   layoutConfig: LayoutConfigStep[];
-  onTimeUpdate?: (time: number) => void;
   fullScreenMode: boolean;
   toggleFullScreen: () => void;
   bgMusicUrl?: string;
   bgMusicFile?: File | null;
   bgMusicVolume?: number;
+  assets?: MediaAsset[];
+  onTimeUpdate?: (time: number) => void;
+  onDurationLoad?: (duration: number) => void;
+  externalSeekTime?: number | null;
 }
 
 export const ReelPlayer: React.FC<ReelPlayerProps> = ({
@@ -23,12 +26,15 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   srtData,
   htmlContent,
   layoutConfig,
-  onTimeUpdate,
   fullScreenMode,
   toggleFullScreen,
   bgMusicUrl,
   bgMusicFile,
-  bgMusicVolume = 0.2
+  bgMusicVolume = 0.2,
+  assets = [],
+  onTimeUpdate,
+  onDurationLoad,
+  externalSeekTime
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -319,6 +325,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
+      if (onDurationLoad) onDurationLoad(video.duration);
       postMessageToIframe({ type: 'timeupdate', time: video.currentTime });
     };
 
@@ -364,6 +371,20 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
       video.removeEventListener('seeked', handleSeeked);
     };
   }, []);
+
+  // --- Handle external seek (from Timeline click) ---
+  useEffect(() => {
+    if (externalSeekTime !== null && externalSeekTime !== undefined && videoRef.current) {
+      if (Math.abs(videoRef.current.currentTime - externalSeekTime) > 0.1) {
+        videoRef.current.currentTime = externalSeekTime;
+        setCurrentTime(externalSeekTime);
+        postMessageToIframe({ type: 'timeupdate', time: externalSeekTime });
+        if (audioRef.current && audioRef.current.src) {
+          audioRef.current.currentTime = externalSeekTime;
+        }
+      }
+    }
+  }, [externalSeekTime]);
 
   // --- ESC key to exit fullscreen ---
   useEffect(() => {
@@ -472,19 +493,42 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     }
   };
 
+
+  // --- Runtime Asset Injection ---
+  const injectedHtml = useMemo(() => {
+    if (!assets || assets.length === 0) return htmlContent;
+
+    let processedHtml = htmlContent;
+    assets.forEach(asset => {
+      // Replace simple filenames with Blob URLs
+      // We use a global regex to catch all instances
+      // Escaping the name for regex safety is good practice but simple replacement works for now
+      const regex = new RegExp(asset.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      processedHtml = processedHtml.replace(regex, asset.url);
+    });
+    return processedHtml;
+  }, [htmlContent, assets]);
+
   return (
-    <div className={`flex flex-col items-center justify-center ${fullScreenMode ? 'fixed inset-0 z-50 bg-black' : 'h-full'}`}>
+    <div className={`flex flex-col items-center justify-center ${fullScreenMode ? 'fixed inset-0 z-50 bg-black' : 'h-full w-full p-4'}`}>
 
       <div
-        className="relative bg-black overflow-hidden shadow-2xl border border-gray-800"
+        className={`relative bg-black overflow-hidden shadow-2xl shadow-black/90 border-[6px] border-gray-800 ${fullScreenMode ? '' : 'rounded-[2.5rem] ring-8 ring-gray-900 ring-opacity-50'}`}
         style={{
           width: fullScreenMode ? '100vh' : '360px',
-          height: fullScreenMode ? '100vh' : '640px',
+          height: fullScreenMode ? '100vh' : 'auto',
+          maxHeight: fullScreenMode ? '100vh' : 'calc(100% - 2rem)',
           aspectRatio: '9/16',
           maxWidth: fullScreenMode ? '100vw' : '100%',
-          cursor: isRecording ? 'none' : 'default'
+          cursor: isRecording ? 'none' : 'default',
+          transform: fullScreenMode ? 'none' : 'translateZ(0)',
+          boxShadow: fullScreenMode ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset'
         }}
       >
+        {/* Reflection Glare (Non-fullscreen only) */}
+        {!fullScreenMode && (
+          <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none z-20 mix-blend-overlay"></div>
+        )}
         <div
           className="absolute top-0 left-0 w-full overflow-hidden bg-gray-900"
           style={layoutStyles.htmlContainer}
@@ -492,7 +536,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
           <iframe
             key={iframeKey} // Force Re-render on key change
             ref={iframeRef}
-            srcDoc={htmlContent}
+            srcDoc={injectedHtml}
             onLoad={handleIframeLoad}
             title="Generated Animation"
             className="w-full h-full border-0 pointer-events-none select-none"
@@ -532,47 +576,60 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
         )}
 
         {!fullScreenMode && !isRecording && (
-          <div className="absolute bottom-4 left-0 w-full px-4 flex items-center justify-between z-50 opacity-0 hover:opacity-100 transition-opacity">
-            <button onClick={togglePlay} className="p-2 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-white">
-              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[85%] bg-black/40 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-center justify-between z-50 shadow-2xl transition-all duration-300 hover:scale-[1.02] group">
+            <button
+              onClick={togglePlay}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 transition-colors shadow-lg shadow-white/10"
+            >
+              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
             </button>
-            <span className="text-xs font-mono text-white/80 bg-black/40 px-2 py-1 rounded">
-              {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
-            </span>
-            <button onClick={restart} className="p-2 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-white" title="Restart & Reload HTML">
-              <RefreshCw size={20} />
+
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-mono text-white/90 tracking-wider">
+                {currentTime.toFixed(1)} <span className="text-gray-500">/</span> {duration.toFixed(1)}
+              </span>
+            </div>
+
+            <button
+              onClick={restart}
+              className="w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors"
+              title="Restart"
+            >
+              <RefreshCw size={16} />
             </button>
           </div>
         )}
       </div>
 
-      {!isRecording && (
-        <div className="mt-4 flex gap-4">
-          <button
-            onClick={togglePlay}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
-          >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
+      {
+        !isRecording && (
+          <div className="mt-8 flex gap-3">
+            <button
+              onClick={togglePlay}
+              className="glass-button flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm hover:bg-white/10"
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+              {isPlaying ? 'Pause' : 'Play'}
+            </button>
 
-          <button
-            onClick={toggleFullScreen}
-            className="flex items-center gap-2 px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
-          >
-            {fullScreenMode ? <Minimize size={18} /> : <Maximize size={18} />}
-            {fullScreenMode ? 'Exit Fullscreen' : 'Fullscreen Preview'}
-          </button>
+            <button
+              onClick={toggleFullScreen}
+              className="glass-button flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm hover:bg-white/10"
+            >
+              {fullScreenMode ? <Minimize size={16} /> : <Maximize size={16} />}
+              {fullScreenMode ? 'Exit' : 'Fullscreen'}
+            </button>
 
-          <button
-            onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-lg font-medium transition-colors shadow-lg shadow-purple-900/20"
-          >
-            <Video size={18} />
-            High Quality Export
-          </button>
-        </div>
-      )}
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-purple-900/30 hover:shadow-purple-900/50 hover:-translate-y-0.5"
+            >
+              <Video size={16} />
+              Export Video
+            </button>
+          </div>
+        )
+      }
 
       {/* High Quality Export Modal */}
       <ExportModal
@@ -587,22 +644,24 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
         layoutConfig={layoutConfig}
       />
 
-      {isRecording && (
-        <div className="fixed top-4 right-4 z-[100]">
-          <button
-            onClick={stopRecording}
-            className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-full font-bold shadow-2xl animate-pulse"
-          >
-            <StopCircle size={20} />
-            Stop Recording
-          </button>
-        </div>
-      )}
+      {
+        isRecording && (
+          <div className="fixed top-4 right-4 z-[100]">
+            <button
+              onClick={stopRecording}
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-full font-bold shadow-2xl animate-pulse"
+            >
+              <StopCircle size={20} />
+              Stop Recording
+            </button>
+          </div>
+        )
+      }
 
       <div className="mt-2 text-gray-500 text-sm">
         {!isRecording && fullScreenMode && "Press ESC to exit fullscreen"}
         {isRecording && "Recording in progress... content will auto-download on finish."}
       </div>
-    </div>
+    </div >
   );
 };

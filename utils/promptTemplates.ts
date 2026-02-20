@@ -199,4 +199,75 @@ Structure:
   }
 ]
 `;
+}
+
+export const constructPromptWithAssets = (topic: string, srt: string, assets: import('../types').MediaAsset[]): string => {
+    let assetContext = "";
+    if (assets.length > 0) {
+        assetContext = `
+AVAILABLE ASSETS (Use these filenames in your HTML/CSS):
+${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
+
+IMPORTANT: 
+- To use an image: <img src="filename.png" class="..." />
+- To use a video: <video src="filename.mp4" autoplay muted loop class="..." />
+- You can animate these assets (opacity, transform) using CSS keyframes.
+- If the user asks for a specific asset, use the exact filename provided above.
+`;
+    }
+
+    return `
+I am creating an Instagram Reel that combines a speaker video with dynamic HTML overlays.
+I need you to act as a Creative Director and Frontend Developer.
+
+### REFERENCE EXAMPLE (LEARN FROM THIS STYLE AND CODE STRUCTURE)
+
+**Context:** ${EXAMPLE_TOPIC}
+
+**Reference Transcript (SRT):**
+${EXAMPLE_SRT}
+
+**Reference Output (HTML/GSAP) - HIGH QUALITY:**
+${REFERENCE_HTML}
+
+**Reference Output (Layout JSON) - COMPLEX TIMELINE:**
+${REFERENCE_JSON}
+
+---
+
+### NOW GENERATE FOR THE FOLLOWING TASK:
+
+**My Video Topic:**
+${topic || "General Content"}
+
+${assetContext}
+
+**My Transcript (SRT):**
+${srt}
+
+---
+
+REQUEST:
+Please provide two separate pieces of code following the Reference Example's quality:
+
+### 1. HTML/CSS/JS Animation
+Create a stunning, self-contained HTML file.
+- **Libraries:** You MUST use GSAP (GreenSock) for animations.
+- **Syncing:** The app sends 'timeupdate', 'play', 'pause' events via window.postMessage. The JS must listen to these.
+- **Design:** Dark mode, Neon accents, Glassmorphism. 9:16 Portrait aspect ratio.
+- **Code Structure:** NO unescaped newlines in strings. Use template literals.
+- **Layering:** Ensure z-index is handled correctly. Video overlays should be behind text but above the background.
+
+### 2. Layout Configuration (JSON)
+Structure:
+[
+  {
+    "startTime": 0.0,
+    "endTime": 10.0,
+    "layoutMode": "split", // or "full-video", "full-html"
+    "splitRatio": 0.55, 
+    "captionPosition": "center"
+  }
+]
+`;
 };

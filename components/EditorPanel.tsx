@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { GeneratedContent, LayoutConfigStep } from '../types';
-import { Code, Layout, Settings, Save, Download, Music, ExternalLink, Copy, CheckCircle2, Sparkles, MessageSquare, Trash2, FileAudio, Key, Edit2, X, Check, Bot, Zap, Cpu, BrainCircuit, ShieldAlert, Lock, RefreshCw, Search } from 'lucide-react';
+import { GeneratedContent, LayoutConfigStep, SRTItem } from '../types';
+import { Code, Layout, Settings, Save, Download, Music, ExternalLink, Copy, CheckCircle2, Sparkles, MessageSquare, Trash2, FileAudio, Key, Edit2, X, Check, Bot, Zap, Cpu, BrainCircuit, ShieldAlert, Lock, RefreshCw, Search, Upload, Image as ImageIcon, AlertTriangle, Type } from 'lucide-react';
 import { extractWavFromVideo } from '../utils/audioHelpers';
-import { constructPrompt } from '../utils/promptTemplates';
+import { constructPrompt, constructPromptWithAssets } from '../utils/promptTemplates';
 import { validateGeminiConnection } from '../services/geminiService';
 import { APP_CONFIG } from '../config';
 import Editor from 'react-simple-code-editor';
@@ -31,6 +31,16 @@ interface EditorPanelProps {
   setModelName: (name: string) => void;
   onSaveApiKey: () => void;
   onPreviewOverride?: (html: string | null) => void;
+  assets: import('../types').MediaAsset[];
+  onAssetUpload: (files: File[]) => void;
+  onRemoveAsset: (id: string) => void;
+  // Subtitle Props
+  srtData?: SRTItem[];
+  onSrtDataUpdate?: (newData: SRTItem[]) => void;
+  // Timeline Props
+  duration: number;
+  currentTime: number;
+  onSeek: (time: number) => void;
 }
 
 export const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -51,9 +61,17 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   modelName,
   setModelName,
   onSaveApiKey,
-  onPreviewOverride
+  onPreviewOverride,
+  assets = [],
+  onAssetUpload,
+  onRemoveAsset,
+  srtData,
+  onSrtDataUpdate,
+  duration,
+  currentTime,
+  onSeek
 }) => {
-  const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio'>('config');
+  const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio' | 'assets' | 'subtitles'>('config');
   const [localConfig, setLocalConfig] = useState(JSON.stringify(content.layoutConfig, null, 2));
   const [localHtml, setLocalHtml] = useState(content.html);
   const [offlineHtml, setOfflineHtml] = useState<string | null>(null); // New state for inlined code
@@ -72,6 +90,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   const [tempModel, setTempModel] = useState('');
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
+
+  // Subtitle inline editing
+  const [editingSubId, setEditingSubId] = useState<number | null>(null);
+  const [editingSubText, setEditingSubText] = useState('');
 
   const isDefaultKey = !apiKey || apiKey === APP_CONFIG.DEFAULT_API_KEY;
   const hasContent = content.html && content.html.length > 50; // heuristic check
@@ -167,7 +189,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   };
 
   const handleCopyPrompt = () => {
-    const prompt = constructPrompt(topicContext, srtText);
+    const prompt = constructPromptWithAssets(topicContext, srtText, assets);
     navigator.clipboard.writeText(prompt);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
@@ -279,6 +301,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-gray-900 border-l border-gray-800">
+      {/* ... styles ... */}
       {/* Custom CSS for Prism theme customization */}
       <style>{`
         .prism-code pre[class*="language-"] {
@@ -326,42 +349,57 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         }
       `}</style>
 
-      <div className="flex border-b border-gray-800">
-        <button
-          onClick={() => setActiveTab('config')}
-          className={`flex-1 p-3 flex items-center justify-center gap-2 text-sm font-medium ${activeTab === 'config' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'}`}
-        >
-          <Layout size={16} /> Layout
-        </button>
-        <button
-          onClick={() => setActiveTab('html')}
-          className={`flex-1 p-3 flex items-center justify-center gap-2 text-sm font-medium ${activeTab === 'html' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'}`}
-        >
-          <Code size={16} /> HTML
-        </button>
-        <button
-          onClick={() => setActiveTab('ai_audio')}
-          className={`flex-1 p-3 flex items-center justify-center gap-2 text-sm font-medium ${activeTab === 'ai_audio' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'}`}
-        >
-          <Settings size={16} /> AI & Audio
-        </button>
+      <div className="flex border-b border-white/5 bg-black/20 p-3 sticky top-0 z-20 backdrop-blur-md">
+        <div className="w-full flex bg-black/40 p-1 rounded-full border border-white/5 relative">
+          {/* Animated Background could go here with Framer Motion, but CSS transition works for now */}
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'config' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Layout size={14} /> <span className="tracking-wide">Layout</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('html')}
+            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'html' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Code size={14} /> <span className="tracking-wide">HTML</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('ai_audio')}
+            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'ai_audio' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Sparkles size={14} className={activeTab === 'ai_audio' ? "text-purple-400" : ""} /> <span className="tracking-wide">Studio</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('assets')}
+            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'assets' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <ImageIcon size={14} /> <span className="tracking-wide">Assets</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('subtitles')}
+            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'subtitles' ? 'bg-gray-800 text-yellow-400 shadow-lg ring-1 ring-yellow-500/20' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Type size={14} /> <span className="tracking-wide">Subs</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-4 relative">
         {activeTab === 'config' && (
-          <div className="h-full visual-editor-container border border-gray-800">
+          <div className="h-full visual-editor-container border border-white/5 rounded-xl bg-black/40 overflow-hidden">
             <div className="prism-code">
               <Editor
                 value={localConfig}
                 onValueChange={setLocalConfig}
                 highlight={highlightJSON}
-                padding={16}
+                padding={20}
                 style={{
                   minHeight: '100%',
                   fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                  fontSize: 14,
+                  fontSize: 13,
                   lineHeight: 1.6,
-                  background: '#0a0a0f'
+                  background: 'transparent'
                 }}
               />
             </div>
@@ -421,18 +459,19 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
             {/* Search Bar */}
             {searchVisible && (
-              <div className="flex items-center gap-2 bg-gray-800/50 p-2 rounded border border-gray-700 animate-fade-in shrink-0">
+              <div className="flex items-center gap-2 bg-black/40 p-2 rounded-lg border border-white/5 animate-fade-in shrink-0">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search in HTML..."
-                  className="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:border-purple-500 outline-none"
+                  className="flex-1 bg-transparent border-none text-xs text-white focus:ring-0 outline-none"
+                  autoFocus
                 />
                 <button
                   onClick={handleSearch}
-                  className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs transition-colors"
+                  className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs transition-colors font-medium"
                 >
                   Find
                 </button>
@@ -469,265 +508,452 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           <div className="space-y-6 text-sm">
 
             {/* Visual Context / Refinement Instructions */}
-            <div className={`p-4 rounded-lg space-y-3 ${hasContent ? 'bg-purple-900/10 border border-purple-500/30' : 'bg-gray-800/50'}`}>
-              <div className="flex justify-between items-center">
-                <h3 className="font-bold text-white flex items-center gap-2">
-                  {hasContent ? <><RefreshCw size={14} className="text-purple-400" /> Refine Scene</> : "Visual Context"}
+            <div className={`p-5 rounded-2xl space-y-3 transition-all relative overflow-hidden group ${hasContent ? 'glass-panel border-purple-500/30 shadow-[0_0_30px_-10px_rgba(168,85,247,0.15)]' : 'glass-panel'}`}>
+              <div className="flex justify-between items-center relative z-10">
+                <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                  {hasContent ? <><RefreshCw size={14} className="text-purple-400" /> Refine Scene</> : <><Edit2 size={14} className="text-gray-400" /> Visual Context</>}
                 </h3>
               </div>
 
               <textarea
                 value={topicContext}
                 onChange={(e) => onTopicContextChange(e.target.value)}
-                className="w-full h-24 bg-gray-900 border border-gray-700 rounded p-2 text-xs text-gray-300 resize-none focus:border-purple-500 focus:outline-none"
+                className="w-full h-24 bg-black/40 border border-white/10 focus:border-purple-500/50 p-4 text-xs text-gray-300 resize-none focus:outline-none rounded-xl placeholder:text-gray-600 transition-all focus:ring-1 focus:ring-purple-500/20"
                 placeholder={hasContent ? "Describe changes to make... e.g. 'Make the background blue' or 'Add particles'" : "Describe your video topic... e.g. 'Quantum Physics explanation with grids'"}
               />
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 relative z-10">
                 <button
                   onClick={handleCopyPrompt}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-xs flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 glass-button py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 text-gray-300 hover:text-white font-medium"
                 >
                   {copySuccess ? <CheckCircle2 size={12} className="text-green-500" /> : <Copy size={12} />}
-                  {copySuccess ? "Copied!" : "Copy Full Prompt"}
+                  {copySuccess ? "Copied!" : "Copy Prompt"}
                 </button>
               </div>
             </div>
 
             {/* Internal Generator & Settings */}
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-purple-500/20 p-4 rounded-lg space-y-3 shadow-lg">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-2">
-                  <Sparkles size={16} className="text-purple-400" /> Internal Generator
+            <div className="glass-panel p-5 rounded-2xl space-y-4 relative overflow-hidden group border border-white/10">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl"></div>
+              <div className="absolute top-4 right-4 p-2 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                <Sparkles size={24} className="text-purple-400/20 group-hover:text-purple-400/40 transform rotate-12" />
+              </div>
+
+              <div className="flex items-center justify-between relative z-10">
+                <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider text-purple-200">
+                  <Sparkles size={14} className="text-purple-400" /> Internal Generator
                 </h3>
                 {!isEditingKey && (
                   <button
                     onClick={() => setIsEditingKey(true)}
-                    className="text-xs text-gray-400 hover:text-white p-1 hover:bg-gray-700 rounded transition-colors flex items-center gap-1"
+                    className="text-[10px] text-gray-500 hover:text-white transition-colors flex items-center gap-1 bg-white/5 px-2 py-1 rounded-full hover:bg-white/10"
                     title="Edit API Key"
                   >
-                    <Edit2 size={12} /> {isDefaultKey ? "Add Key" : "Edit"}
+                    <Edit2 size={10} /> {isDefaultKey ? "Add Key" : "Edit Key"}
                   </button>
                 )}
               </div>
 
               {!isEditingKey ? (
                 // Display Mode
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center bg-gray-950/50 p-2 rounded border border-gray-800">
+                <div className="space-y-4 relative z-10">
+                  <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
                     <div className="flex items-center gap-2 text-xs text-gray-300">
-                      <Key size={12} className={isDefaultKey ? "text-yellow-500" : "text-blue-500"} />
-                      <span className={isDefaultKey ? "text-yellow-400 font-semibold" : ""}>
-                        {isDefaultKey ? 'No Key Set' : `••••••••${apiKey.slice(-4)}`}
+                      <Key size={12} className={isDefaultKey ? "text-yellow-500" : "text-emerald-500"} />
+                      <span className={isDefaultKey ? "text-yellow-400 font-medium" : "font-mono text-emerald-400 tracking-tight"}>
+                        {isDefaultKey ? 'No Key Set' : `•••• ${apiKey.slice(-4)}`}
                       </span>
                     </div>
-                    <div className="text-[10px] bg-purple-900/40 text-purple-300 px-2 py-0.5 rounded flex items-center gap-1 max-w-[150px] truncate" title={modelName}>
+                    <div className="text-[10px] bg-white/5 text-gray-400 px-2 py-0.5 rounded-full border border-white/5 font-medium">
                       {modelName}
-                      {isDefaultKey && <Lock size={8} />}
                     </div>
                   </div>
 
                   <button
                     onClick={onGenerate}
                     disabled={isGenerating || !apiKey}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded font-bold transition-all mt-2 ${!apiKey
-                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-purple-700 to-pink-700 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-900/20'
+                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all shadow-lg relative overflow-hidden group/btn ${!apiKey
+                      ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                      : 'bg-white text-black hover:scale-[1.02]'
                       }`}
                   >
-                    {isGenerating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={14} />}
-                    {hasContent ? "Update Scene (Refine)" : "Generate Scene"}
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-200 via-white to-purple-200 opacity-0 group-hover/btn:opacity-20 transition-opacity blur-xl"></div>
+                    {isGenerating ? <div className="w-4 h-4 border-2 border-gray-500 border-t-black rounded-full animate-spin" /> : <Sparkles size={16} className={!apiKey ? "text-gray-500" : "text-purple-600"} />}
+                    <span className="relative z-10">{hasContent ? "Update Scene" : "Generate Scene"}</span>
                   </button>
                 </div>
               ) : (
                 // Edit Mode
-                <div className="space-y-3 animate-fade-in">
-                  <div className="space-y-1">
+                <div className="space-y-3 animate-fade-in relative z-10 bg-black/40 p-4 rounded-xl border border-white/10">
+                  <div className="space-y-2">
                     <div className="flex justify-between">
-                      <label className="text-xs text-gray-400">Custom API Key</label>
-                      <div className="flex gap-2">
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1">
-                          <ExternalLink size={10} /> Get Free Key
-                        </a>
-                        {isDefaultKey && (
-                          <span className="text-[10px] text-yellow-400">Key required for generation</span>
-                        )}
-                      </div>
+                      <label className="text-[10px] uppercase text-gray-500 font-semibold">API Key</label>
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1">
+                        Get Key <ExternalLink size={8} />
+                      </a>
                     </div>
                     <input
                       type="password"
                       value={tempKey}
                       onChange={(e) => setTempKey(e.target.value)}
-                      placeholder={isDefaultKey ? "Enter your custom key..." : ""}
-                      className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-purple-500 outline-none"
+                      placeholder={isDefaultKey ? "Paste your Gemini API Key..." : ""}
+                      className="w-full input-base bg-black/60 px-3 py-2.5 text-xs rounded-lg"
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs text-gray-400">Model</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase text-gray-500 font-semibold">Model</label>
                     <select
                       value={tempModel}
                       onChange={(e) => setTempModel(e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-purple-500 outline-none"
+                      className="w-full input-base bg-black/60 px-3 py-2.5 text-xs rounded-lg appearance-none"
                     >
-                      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                      <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                      <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                      <option value="gemini-2.0-pro-exp">Gemini 2.0 Pro (Exp)</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                       <option value="custom">Custom...</option>
                     </select>
                     {tempModel === 'custom' && (
                       <input
                         type="text"
                         placeholder="Enter model string..."
-                        className="w-full mt-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-purple-500 outline-none"
+                        className="w-full mt-2 input-base bg-black/60 px-3 py-2.5 text-xs rounded-lg"
                         onChange={(e) => setTempModel(e.target.value)}
                       />
                     )}
                   </div>
 
-                  {keyError && <div className="text-xs text-red-400 flex items-center gap-1"><X size={10} /> {keyError}</div>}
+                  {keyError && <div className="text-xs text-red-400 flex items-center gap-1 bg-red-900/20 p-2 rounded-lg border border-red-500/20"><X size={12} /> {keyError}</div>}
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setIsEditingKey(false)}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded text-xs transition-colors"
+                      className="flex-1 glass-button py-2 rounded-lg text-xs font-medium"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleSaveKeyConfig}
                       disabled={isValidatingKey}
-                      className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-1.5 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 bg-white hover:bg-gray-200 text-black py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-lg"
                     >
-                      {isValidatingKey ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={12} />}
-                      Verify & Save
+                      {isValidatingKey ? <div className="w-3 h-3 border-2 border-gray-400 border-t-black rounded-full animate-spin" /> : <Check size={12} />}
+                      Save
                     </button>
                   </div>
-
-                  {/* Option to clear custom key */}
-                  {!isDefaultKey && (
-                    <div className="pt-2 text-center border-t border-gray-700">
-                      <button
-                        onClick={() => {
-                          setApiKey(APP_CONFIG.DEFAULT_API_KEY);
-                          setModelName(APP_CONFIG.DEFAULT_MODEL);
-                          setTimeout(() => onSaveApiKey(), 0);
-                          setIsEditingKey(false);
-                        }}
-                        className="text-[10px] text-red-400 hover:text-red-300 underline"
-                      >
-                        Remove Custom Key
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
 
             {/* External Intelligence */}
-            <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <MessageSquare size={16} /> External Intelligence
+            <div className="glass-panel p-4 rounded-xl space-y-3">
+              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                <MessageSquare size={14} className="text-blue-400" /> External Intelligence
               </h3>
-              <p className="text-[10px] text-gray-400 mb-2">Manual Workflow: Copy prompt above -&gt; Generate in External App -&gt; Paste code in HTML Tab.</p>
               <div className="grid grid-cols-2 gap-2">
-                <a href="https://chatgpt.com/" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-teal-700/50 text-white py-3 rounded-lg text-xs font-medium transition-colors border border-gray-600 hover:border-teal-500/50">
+                <a href="https://chatgpt.com/" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-teal-500/50">
                   <Bot size={14} className="text-teal-400" /> ChatGPT
                 </a>
-                <a href="https://claude.ai/new" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-orange-700/50 text-white py-3 rounded-lg text-xs font-medium transition-colors border border-gray-600 hover:border-orange-500/50">
+                <a href="https://claude.ai/new" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-orange-500/50">
                   <BrainCircuit size={14} className="text-orange-400" /> Claude
                 </a>
-                <a href="https://gemini.google.com/app" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-blue-700/50 text-white py-3 rounded-lg text-xs font-medium transition-colors border border-gray-600 hover:border-blue-500/50">
+                <a href="https://gemini.google.com/app" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-blue-500/50">
                   <Sparkles size={14} className="text-blue-400" /> Gemini
                 </a>
-                <a href="https://chat.deepseek.com/" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-blue-600/50 text-white py-3 rounded-lg text-xs font-medium transition-colors border border-gray-600 hover:border-blue-400/50">
+                <a href="https://chat.deepseek.com/" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-blue-400/50">
                   <Cpu size={14} className="text-blue-300" /> DeepSeek
                 </a>
               </div>
             </div>
 
             {/* Audio Tools */}
-            <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <Music size={16} /> Audio Tools
+            <div className="glass-panel p-4 rounded-xl space-y-3">
+              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                <Music size={14} className="text-pink-400" /> Audio Tools
               </h3>
 
               <button
                 onClick={extractAndDownloadAudio}
                 disabled={isExtracting}
-                className="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 py-2 rounded text-white transition-colors"
+                className="w-full flex items-center justify-center gap-2 glass-button py-2.5 rounded-lg text-white text-xs font-medium hover:bg-white/10"
               >
                 {isExtracting ? (
                   <span className="animate-pulse">Extracting...</span>
                 ) : (
                   <>
-                    <Download size={14} /> Extract WAV
+                    <Download size={14} /> Extract WAV from Video
                   </>
                 )}
               </button>
 
               <div className="flex justify-between gap-2 mt-2">
-                <a href="https://transcri.io/en/subtitle-generator/srt" target="_blank" rel="noreferrer" className="flex-1 bg-gray-700 hover:bg-gray-600 text-center py-1.5 rounded text-xs text-gray-300">
+                <a href="https://transcri.io/en/subtitle-generator/srt" target="_blank" rel="noreferrer" className="flex-1 glass-button py-2 rounded-lg text-xs text-center text-gray-300 hover:text-white">
                   Transcri.io
                 </a>
-                <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="flex-1 bg-gray-700 hover:bg-gray-600 text-center py-1.5 rounded text-xs text-gray-300">
+                <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="flex-1 glass-button py-2 rounded-lg text-xs text-center text-gray-300 hover:text-white">
                   Adobe Enhance
                 </a>
               </div>
             </div>
 
             {/* Background Music */}
-            <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <Music size={16} /> Background Music
-              </h3>
+            <div className="glass-panel p-4 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                  <Music size={14} className="text-indigo-400" /> Background Music
+                </h3>
+                <span className="text-[10px] text-gray-500">{(bgMusicVolume * 100).toFixed(0)}% Vol</span>
+              </div>
 
               {bgMusicName ? (
-                <div className="flex items-center justify-between bg-gray-700 rounded p-2">
+                <div className="flex items-center justify-between bg-black/40 border border-white/5 rounded-lg p-2.5">
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <FileAudio size={16} className="text-purple-400 flex-shrink-0" />
+                    <FileAudio size={14} className="text-purple-400 flex-shrink-0" />
                     <span className="text-xs text-white truncate">{bgMusicName}</span>
                   </div>
                   <button
                     onClick={handleRemoveMusic}
-                    className="p-1 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded transition-colors"
+                    className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded transition-colors"
                     title="Remove Music"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
               ) : (
-                <input
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleMusicUpload}
-                  className="block w-full text-xs text-gray-400 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600"
-                />
+                <label className="flex items-center justify-center gap-2 w-full p-2.5 border border-dashed border-gray-600 rounded-lg text-xs text-gray-400 hover:text-white hover:border-gray-500 cursor-pointer transition-colors hover:bg-white/5">
+                  <Music size={14} /> Upload Music
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleMusicUpload}
+                    className="hidden"
+                  />
+                </label>
               )}
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">Vol:</span>
-                <input
-                  type="range"
-                  min="0" max="1" step="0.05"
-                  value={bgMusicVolume}
-                  onChange={(e) => onBgVolumeChange(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className="text-xs w-8">{(bgMusicVolume * 100).toFixed(0)}%</span>
-              </div>
+              <input
+                type="range"
+                min="0" max="1" step="0.05"
+                value={bgMusicVolume}
+                onChange={(e) => onBgVolumeChange(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
             </div>
 
           </div>
         )}
+
+        {activeTab === 'subtitles' && (
+          <div className="space-y-4 text-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                <Type size={14} className="text-yellow-400" /> Subtitles
+              </h3>
+              {srtData && <span className="text-[10px] text-gray-500 font-mono">{srtData.length} items</span>}
+            </div>
+
+            {!srtData || srtData.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Type size={32} className="mx-auto opacity-20 mb-3" />
+                <p className="text-xs">No subtitles loaded.</p>
+                <p className="text-[10px] text-gray-600 mt-1">Upload an SRT file in the upload step.</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {srtData.map((item) => {
+                  const isActive = currentTime >= item.startTime && currentTime < item.endTime;
+                  const isEditing = editingSubId === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`group rounded-lg border transition-all ${isActive
+                          ? 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_12px_-4px_rgba(234,179,8,0.3)]'
+                          : 'bg-black/20 border-white/5 hover:border-white/15 hover:bg-black/30'
+                        }`}
+                    >
+                      {/* Time + Controls Row */}
+                      <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                        <button
+                          onClick={() => onSeek(item.startTime)}
+                          className="text-[10px] font-mono text-gray-500 hover:text-yellow-400 transition-colors cursor-pointer"
+                          title="Jump to this subtitle"
+                        >
+                          {item.startTime.toFixed(1)}s → {item.endTime.toFixed(1)}s
+                        </button>
+                        {!isEditing ? (
+                          <button
+                            onClick={() => {
+                              setEditingSubId(item.id);
+                              setEditingSubText(item.text);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 hover:text-white transition-all flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full hover:bg-white/10"
+                          >
+                            <Edit2 size={9} /> Edit
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingSubId(null)}
+                              className="text-[10px] text-gray-500 hover:text-red-400 transition-colors p-0.5"
+                              title="Cancel"
+                            >
+                              <X size={12} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (onSrtDataUpdate) {
+                                  onSrtDataUpdate(
+                                    srtData.map(s => s.id === item.id ? { ...s, text: editingSubText } : s)
+                                  );
+                                }
+                                setEditingSubId(null);
+                              }}
+                              className="text-[10px] text-green-400 hover:text-green-300 transition-colors p-0.5"
+                              title="Save"
+                            >
+                              <Check size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Text Content */}
+                      <div className="px-3 pb-2">
+                        {isEditing ? (
+                          <textarea
+                            value={editingSubText}
+                            onChange={(e) => setEditingSubText(e.target.value)}
+                            className="w-full bg-black/40 border border-yellow-500/30 rounded-md p-2 text-xs text-white resize-none focus:outline-none focus:border-yellow-500/60 focus:ring-1 focus:ring-yellow-500/30"
+                            rows={2}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (onSrtDataUpdate) {
+                                  onSrtDataUpdate(
+                                    srtData.map(s => s.id === item.id ? { ...s, text: editingSubText } : s)
+                                  );
+                                }
+                                setEditingSubId(null);
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingSubId(null);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <p
+                            className={`text-xs leading-relaxed cursor-pointer ${isActive ? 'text-yellow-200 font-medium' : 'text-gray-400'
+                              }`}
+                            onClick={() => {
+                              setEditingSubId(item.id);
+                              setEditingSubText(item.text);
+                            }}
+                            title="Click to edit"
+                          >
+                            {item.text}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'assets' && (
+          <div className="flex flex-col h-full space-y-4">
+            {/* Upload Area */}
+            <div className="p-4 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    onAssetUpload(Array.from(e.target.files));
+                  }
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <div className="p-3 bg-purple-500/20 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                <Upload size={24} className="text-purple-400" />
+              </div>
+              <p className="text-sm font-medium text-gray-300">Click or Drag to Upload Assets</p>
+              <p className="text-xs text-gray-500 mt-1">Images (PNG, JPG) & Videos (MP4, WebM)</p>
+            </div>
+
+            {/* Asset Grid */}
+            <div className="flex-1 overflow-y-auto pr-1">
+              {assets.length === 0 ? (
+                <div className="text-center text-gray-500 py-10 flex flex-col items-center">
+                  <ImageIcon size={32} className="opacity-20 mb-2" />
+                  <p className="text-xs">No assets uploaded yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {assets.map(asset => (
+                    <div key={asset.id} className="group relative bg-black/40 border border-white/5 rounded-xl overflow-hidden aspect-square">
+                      {/* Thumbnail */}
+                      {asset.type === 'image' ? (
+                        <img src={asset.url} alt={asset.name} className="w-full h-full object-contain p-2" />
+                      ) : (
+                        <video src={asset.url} className="w-full h-full object-cover opacity-60" />
+                      )}
+
+                      {/* Overlay Controls */}
+                      <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                        <span className="text-[10px] text-gray-300 w-full truncate text-center font-mono">{asset.name}</span>
+
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(asset.type === 'image'
+                              ? `<img src="${asset.name}" class="absolute top-1/2 left-1/2 w-32" />`
+                              : `<video src="${asset.name}" autoplay muted loop class="absolute top-0 left-0 w-full h-full object-cover" />`
+                            );
+                          }}
+                          className="bg-white text-black text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 hover:scale-105 transition-transform"
+                        >
+                          <Copy size={10} /> Copy Code
+                        </button>
+
+                        <button
+                          onClick={() => onRemoveAsset(asset.id)}
+                          className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-900/30 rounded-full transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+
+                      {/* Type Badge */}
+                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-[8px] uppercase font-bold text-gray-400">
+                        {asset.type}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="text-[10px] text-gray-500 bg-yellow-500/5 p-3 rounded-lg border border-yellow-500/10 flex gap-2">
+              <AlertTriangle size={12} className="text-yellow-500 shrink-0" />
+              <p>Assets are stored in memory. Reloading the page will clear them.</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="p-4 border-t border-gray-800 bg-gray-900">
+      <div className="p-4 border-t border-white/5 bg-black/20">
         <button
           onClick={handleSave}
-          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white py-2 rounded font-semibold transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-purple-900/40"
         >
-          <Save size={18} /> Apply Changes
+          <Save size={16} /> Apply Changes
         </button>
       </div>
     </div>

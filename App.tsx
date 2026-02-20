@@ -7,8 +7,9 @@ import { ReelPlayer } from './components/ReelPlayer';
 import { EditorPanel } from './components/EditorPanel';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProjectLibrary } from './components/ProjectLibrary';
+import { VisualTimeline } from './components/VisualTimeline';
 import { parseSRT } from './utils/srtParser';
-import { AppState, GeneratedContent, SRTItem } from './types';
+import { AppState, GeneratedContent, SRTItem, MediaAsset } from './types';
 import { Edit3, AlertCircle, LayoutTemplate, CheckCircle2, Globe, Github, Linkedin, Instagram, Facebook, BookOpen, X, Sparkles, Smartphone, Monitor, ArrowLeft, Key, Folder, Save } from 'lucide-react';
 import { generateReelContent } from './services/geminiService';
 import { APP_CONFIG } from './config';
@@ -56,10 +57,85 @@ const App: React.FC = () => {
         return localStorage.getItem('gemini_model_pref') || APP_CONFIG.DEFAULT_MODEL;
     });
 
+    // Timeline state — lifted from ReelPlayer so EditorPanel's VisualTimeline can read/control it
+    const [videoDuration, setVideoDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [externalSeekTime, setExternalSeekTime] = useState<number | null>(null);
+
     // Audio State
     const [bgMusicFile, setBgMusicFile] = useState<File | null>(null);
     const [bgMusicUrl, setBgMusicUrl] = useState<string | undefined>(undefined);
     const [bgMusicVolume, setBgMusicVolume] = useState(0.2);
+
+    // Asset State
+    const [assets, setAssets] = useState<MediaAsset[]>([]);
+
+    // Subtitle Editing State
+    const [editingSubtitle, setEditingSubtitle] = useState<SRTItem | null>(null);
+    const [editSubtitleText, setEditSubtitleText] = useState('');
+
+    // Save Project Dialog State
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
+    const [saveProjectName, setSaveProjectName] = useState('');
+
+    const handleSubtitleClick = (item: SRTItem) => {
+        setEditingSubtitle(item);
+        setEditSubtitleText(item.text);
+    };
+
+    const handleSaveSubtitle = () => {
+        if (!editingSubtitle) return;
+        setSrtData(prev => prev.map(item =>
+            item.id === editingSubtitle.id ? { ...item, text: editSubtitleText } : item
+        ));
+        setEditingSubtitle(null);
+        setEditSubtitleText('');
+    };
+
+    const handleOpenSaveDialog = () => {
+        setSaveProjectName(`Reel ${new Date().toLocaleDateString()}`);
+        setShowSaveDialog(true);
+    };
+
+    const handleConfirmSave = async () => {
+        if (!saveProjectName.trim() || !generatedContent) return;
+        try {
+            await saveProjectWithVideo({
+                name: saveProjectName,
+                html: generatedContent.html,
+                layoutConfig: generatedContent.layoutConfig,
+                srtText: srtTextRaw,
+                topicContext: topicContext,
+                bgMusicVolume: bgMusicVolume,
+                bgMusicName: bgMusicFile?.name,
+                videoFileName: videoFile?.name
+            }, videoFile);
+            setShowSaveDialog(false);
+        } catch (e: any) {
+            console.error(e);
+            setShowSaveDialog(false);
+        }
+    };
+
+    const handleAssetUpload = (files: File[]) => {
+        const newAssets = files.map(file => ({
+            id: crypto.randomUUID(),
+            file,
+            name: file.name,
+            type: file.type.startsWith('video/') ? 'video' : 'image',
+            url: URL.createObjectURL(file)
+        } as MediaAsset));
+
+        setAssets(prev => [...prev, ...newAssets]);
+    };
+
+    const handleRemoveAsset = (id: string) => {
+        setAssets(prev => {
+            const target = prev.find(a => a.id === id);
+            if (target) URL.revokeObjectURL(target.url);
+            return prev.filter(a => a.id !== id);
+        });
+    };
 
     // Project Library State
     const [showLibrary, setShowLibrary] = useState(false);
@@ -326,95 +402,71 @@ const App: React.FC = () => {
                 ) : (
                     <div className="w-full h-screen flex flex-col bg-gray-950 text-white overflow-hidden relative">
 
-                        {/* Header (Simplified - Only show 'Change Key' button if not in UPLOAD/WELCOME to avoid duplication) */}
+                        {/* Header (Dynamic Island Style) */}
                         {!isFullScreen && appState !== AppState.UPLOAD && (
-                            <header className="h-14 border-b border-gray-800/80 flex items-center justify-between px-6 bg-gray-950/90 backdrop-blur-md z-10 shrink-0 shadow-lg shadow-black/20">
-                                <div className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
-                                    Reel Composer
+                            <header className="relative mt-6 mb-4 mx-auto w-[90%] max-w-6xl h-16 shrink-0 rounded-full border border-white/10 flex items-center justify-between px-6 bg-black/40 backdrop-blur-md z-50 shadow-2xl shadow-black/50 pointer-events-none">
+                                <div className="pointer-events-auto flex items-center gap-4">
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 p-[1px] shadow-lg shadow-purple-500/30">
+                                        <div className="w-full h-full rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                                            <Sparkles size={18} className="text-white" />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-display font-medium text-lg tracking-tight text-white leading-none">
+                                            Reel Composer
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">
+                                            Pro Studio
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-400">
 
-                                    <button
-                                        onClick={handleResetAuth}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/80 transition-colors"
-                                        title="Reset API Key"
-                                    >
-                                        <Key size={16} />
-                                        <span className="hidden lg:inline">Change Key</span>
-                                    </button>
-
-                                    <div className="w-px h-4 bg-gray-700"></div>
-
+                                <div className="pointer-events-auto flex items-center gap-2">
+                                    <div className="hidden lg:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/5 mr-4">
+                                        <button
+                                            onClick={handleResetAuth}
+                                            className="px-4 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                                            title="Settings"
+                                        >
+                                            <Key size={12} /> API
+                                        </button>
+                                        <div className="w-px h-4 bg-white/10"></div>
+                                        <button
+                                            onClick={() => setShowLibrary(true)}
+                                            className="px-4 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                                        >
+                                            <Folder size={12} /> Library
+                                        </button>
+                                    </div>
 
                                     <button
                                         onClick={() => {
-                                            // Warn if there's unsaved work
                                             if (generatedContent) {
-                                                const confirmed = confirm(
-                                                    'Starting a new project will clear your current work.\n\n' +
-                                                    'Make sure to SAVE your current project first!\n\n' +
-                                                    'Tip: Click "Projects" button to access saved work anytime.\n\n' +
-                                                    'Continue to new project?'
-                                                );
+                                                const confirmed = confirm('Start new project? Unsaved changes will be lost.');
                                                 if (!confirmed) return;
                                             }
-
                                             setAppState(AppState.UPLOAD);
                                             setGeneratedContent(null);
                                             setBgMusicFile(null);
                                             setPendingContent(null);
                                             setShowReplaceDialog(false);
-                                            setIsAudioOnly(false); // Reset
+                                            setIsAudioOnly(false);
                                         }}
-                                        className="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/80 transition-colors"
+                                        className="glass-button w-9 h-9 rounded-full flex items-center justify-center text-gray-300 hover:text-white"
+                                        title="New Project"
                                     >
-                                        New Project
+                                        <LayoutTemplate size={16} />
                                     </button>
 
-                                    <div className="w-px h-4 bg-gray-700"></div>
-
-                                    {/* Projects Library Button */}
-                                    <button
-                                        onClick={() => setShowLibrary(true)}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/80 transition-colors"
-                                        title="Browse saved projects"
-                                    >
-                                        <Folder size={16} />
-                                        <span className="hidden lg:inline">Projects</span>
-                                    </button>
-
-                                    {/* Save Button - only show when content exists */}
                                     {generatedContent && (
-                                        <>
-                                            <div className="w-px h-4 bg-gray-700"></div>
-                                            <button
-                                                onClick={async () => {
-                                                    const name = prompt('Name your project:', `Reel ${new Date().toLocaleDateString()}`);
-                                                    if (name) {
-                                                        await saveProjectWithVideo({
-                                                            name,
-                                                            html: generatedContent.html,
-                                                            layoutConfig: generatedContent.layoutConfig,
-                                                            srtText: srtTextRaw,
-                                                            topicContext: topicContext,
-                                                            bgMusicVolume: bgMusicVolume,
-                                                            bgMusicName: bgMusicFile?.name,
-                                                            videoFileName: videoFile?.name
-                                                        }, videoFile);
-                                                        alert('✅ Project AND video saved!');
-                                                    }
-                                                }}
-                                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-green-400 hover:bg-gray-800/80 transition-colors"
-                                                title="Save current project"
-                                            >
-                                                <Save size={16} />
-                                                <span className="hidden lg:inline">Save</span>
-                                            </button>
-                                        </>
+                                        <button
+                                            onClick={handleOpenSaveDialog}
+                                            className="flex items-center gap-2 px-5 py-2 rounded-full bg-white text-black hover:bg-gray-200 font-semibold text-sm shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all hover:scale-105 ml-2"
+                                        >
+                                            <Save size={14} />
+                                            <span>Save</span>
+                                        </button>
                                     )}
-
-                                    <div className="w-px h-4 bg-gray-700"></div>
-                                    <span className="text-xs uppercase tracking-widest text-purple-400">v1.2.5</span>
                                 </div>
                             </header>
                         )}
@@ -436,139 +488,186 @@ const App: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* State: Setup (Context) */}
+                            {/* State: Setup (Cinematic Studio) */}
                             {appState === AppState.GENERATING && (
-                                <div className="flex flex-col h-full overflow-auto">
-                                    <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto p-6 space-y-8 animate-fade-in">
-                                        <div className="text-center space-y-2">
-                                            <div className="mx-auto w-16 h-16 bg-purple-900/30 rounded-full flex items-center justify-center text-purple-400 mb-4">
-                                                <LayoutTemplate size={32} />
-                                            </div>
-                                            <h2 className="text-3xl font-bold">Director's Studio</h2>
-                                            <p className="text-gray-400 max-w-md mx-auto">
-                                                {isAudioOnly
-                                                    ? "Audio-Only Mode: We will generate full-screen visuals to accompany your script."
-                                                    : "Describe your video topic. We'll copy this prompt to your clipboard and auto-generate the initial animation scene."}
-                                            </p>
-                                        </div>
+                                <div className="flex flex-col h-full overflow-hidden relative">
+                                    {/* Cinematic Background Elements */}
+                                    <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/10 rounded-full blur-[120px] animate-pulse"></div>
+                                        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px]"></div>
+                                        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-pink-600/10 rounded-full blur-[100px]"></div>
+                                    </div>
 
-                                        <div className="w-full space-y-4">
-                                            <label className="block text-sm font-medium text-gray-400 uppercase tracking-wider">Video Topic / Visual Context <span className="text-gray-500 text-xs normal-case">(Optional)</span></label>
-                                            <textarea
-                                                value={topicContext}
-                                                onChange={(e) => setTopicContext(e.target.value)}
-                                                placeholder={isAudioOnly ? "e.g. Visuals should be about space exploration, with planets and stars." : "e.g. This video explains Quantum Tunneling. I want particles passing through barriers..."}
-                                                className="w-full h-32 bg-gray-900 border border-gray-700 rounded-xl p-4 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none transition-all"
-                                            />
-                                        </div>
+                                    <div className="flex-1 flex flex-col items-center justify-center p-8 z-10 relative mt-16">
+                                        <div className="glass-panel max-w-2xl w-full p-10 rounded-[2.5rem] shadow-2xl animate-scale-in border border-white/10 relative overflow-hidden group">
+                                            {/* Spotlight Effect */}
+                                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                                            <div className="absolute -top-[100px] -left-[100px] w-[200px] h-[200px] bg-purple-500/30 blur-[80px] group-hover:bg-purple-500/40 transition-all duration-700"></div>
 
-                                        <div className="w-full space-y-3">
-                                            <button
-                                                onClick={handleEnterStudio}
-                                                disabled={isGenerating}
-                                                className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${isGenerating
-                                                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                                    : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-purple-900/20 hover:scale-[1.02]'
-                                                    }`}
-                                            >
-                                                {isGenerating ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                        Generating Scene...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Edit3 size={18} />
-                                                        {!apiKey ? "No API Key - Enter Manual Mode" : (srtData.length === 0 ? "Enter Demo Studio" : "Enter Studio & Auto-Generate")}
-                                                    </>
-                                                )}
-                                            </button>
-
-                                            {/* Manual Mode Option - Appears after 10s */}
-                                            {isGenerating && showManualButton && (
-                                                <div className="animate-fade-in text-center pt-2">
-                                                    <span className="text-xs text-gray-500 block mb-2">Taking longer than expected?</span>
-                                                    <button
-                                                        onClick={handleManualModeEnter}
-                                                        className="text-sm text-purple-400 hover:text-white underline underline-offset-4 decoration-purple-500/30 hover:decoration-purple-500 transition-all"
-                                                    >
-                                                        Skip & Enter Manual Mode
-                                                    </button>
+                                            <div className="text-center space-y-4 mb-10 relative z-10">
+                                                <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-gray-800/50 to-black/50 mb-2 border border-white/5 shadow-2xl ring-1 ring-white/5">
+                                                    <Sparkles size={32} className="text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]" />
                                                 </div>
-                                            )}
-                                        </div>
+                                                <div>
+                                                    <h2 className="text-5xl font-display font-medium tracking-tighter text-white mb-2">
+                                                        Director's Studio
+                                                    </h2>
+                                                    <p className="text-gray-400 text-lg font-light max-w-md mx-auto">
+                                                        {isAudioOnly
+                                                            ? "Craft the visual atmosphere for your audio track."
+                                                            : "Direct the AI to generate synced visuals."}
+                                                    </p>
+                                                </div>
+                                            </div>
 
-                                        {error && (
-                                            <div className="w-full p-4 bg-red-900/20 border border-red-800 rounded-lg flex flex-col gap-3 animate-fade-in">
-                                                <div className="flex items-start gap-3">
-                                                    <AlertCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
-                                                    <div className="flex-1">
-                                                        <h4 className="text-sm font-bold text-red-300">Generation Failed</h4>
-                                                        <p className="text-xs text-red-200 mt-1 leading-relaxed">{error}</p>
+                                            <div className="space-y-8 relative z-10">
+                                                <div className="space-y-3">
+                                                    <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">
+                                                        <Edit3 size={12} />
+                                                        Visual Direction
+                                                    </label>
+                                                    <div className="relative group/input">
+                                                        <textarea
+                                                            value={topicContext}
+                                                            onChange={(e) => setTopicContext(e.target.value)}
+                                                            placeholder={isAudioOnly ? "e.g. A lo-fi chill space background with floating stars..." : "e.g. Create a high-energy tech demo with neon grids and fast transitions..."}
+                                                            className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-5 text-base text-gray-200 placeholder:text-gray-600 resize-none focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all shadow-inner"
+                                                        />
+                                                        <div className="absolute bottom-4 right-4 text-xs text-gray-600 font-mono">
+                                                            {topicContext.length} chars
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex gap-3 pl-8">
+                                                <div className="space-y-4">
                                                     <button
-                                                        onClick={handleResetAuth}
-                                                        className="px-4 py-2 bg-red-900/50 hover:bg-red-900 text-white text-xs rounded-lg transition-colors border border-red-700/50"
+                                                        onClick={handleEnterStudio}
+                                                        disabled={isGenerating}
+                                                        className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-2xl border border-white/10 relative overflow-hidden group/btn ${isGenerating
+                                                            ? 'bg-gray-900 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
+                                                            }`}
                                                     >
-                                                        Update API Key
+                                                        {!isGenerating && <div className="absolute inset-0 bg-gradient-to-r from-purple-200 via-white to-purple-200 opacity-0 group-hover/btn:opacity-50 transition-opacity blur-xl"></div>}
+
+                                                        {isGenerating ? (
+                                                            <>
+                                                                <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                                                                <span>Designing Scene...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <span className="relative z-10">{!apiKey ? "Enter Manual Mode" : "Generate Scene"}</span>
+                                                                <Sparkles size={20} className="relative z-10 text-purple-600" />
+                                                            </>
+                                                        )}
                                                     </button>
-                                                    <button
-                                                        onClick={handleManualModeEnter}
-                                                        className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition-colors border border-gray-700"
-                                                    >
-                                                        Continue in Manual Mode
-                                                    </button>
+
+                                                    {/* Manual Mode Option */}
+                                                    {isGenerating && showManualButton && (
+                                                        <div className="animate-fade-in text-center">
+                                                            <button
+                                                                onClick={handleManualModeEnter}
+                                                                className="text-sm text-gray-500 hover:text-white transition-colors"
+                                                            >
+                                                                Taking too long? <span className="underline decoration-gray-700 underline-offset-4 hover:decoration-white">Skip to Editor</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                        )}
+
+                                            {/* Error Message */}
+                                            {error && (
+                                                <div className="mt-8 p-4 bg-red-950/30 border border-red-500/20 rounded-xl flex items-start gap-4 animate-fade-in backdrop-blur-md">
+                                                    <div className="p-2 bg-red-500/10 rounded-full">
+                                                        <AlertCircle size={20} className="text-red-400" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <h4 className="text-sm font-bold text-red-200">Generation Failed</h4>
+                                                        <p className="text-sm text-red-300/70 mt-1 leading-relaxed">{error}</p>
+                                                        <div className="flex gap-4 mt-3">
+                                                            <button onClick={handleResetAuth} className="text-xs font-semibold text-red-300 hover:text-white transition-colors">Check API Key</button>
+                                                            <button onClick={handleManualModeEnter} className="text-xs font-semibold text-gray-500 hover:text-white transition-colors">Use Manual Mode</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
                             {/* State: Editor (Split View) */}
                             {appState === AppState.EDITOR && generatedContent && (
-                                <div className="flex h-full">
-                                    {/* Left: Player */}
-                                    <div className={`flex-1 flex flex-col items-center justify-center bg-black/20 relative transition-all duration-300 ${isFullScreen ? 'w-full fixed inset-0 z-50 bg-black' : ''}`}>
-                                        <ReelPlayer
-                                            videoUrl={videoUrl}
-                                            videoFile={videoFile}
-                                            srtData={srtData}
-                                            htmlContent={previewOverride || generatedContent.html}
-                                            layoutConfig={generatedContent.layoutConfig}
-                                            fullScreenMode={isFullScreen}
-                                            toggleFullScreen={toggleFullScreen}
-                                            bgMusicUrl={bgMusicUrl}
-                                            bgMusicFile={bgMusicFile}
-                                            bgMusicVolume={bgMusicVolume}
-                                        />
+                                <div className="flex flex-col h-full">
+                                    {/* Top: Player + Editor Row */}
+                                    <div className="flex flex-1 min-h-0 overflow-hidden">
+                                        {/* Left: Player */}
+                                        <div className={`flex-1 flex flex-col items-center justify-center bg-black/20 relative transition-all duration-300 overflow-hidden ${isFullScreen ? 'w-full fixed inset-0 z-50 bg-black' : ''}`}>
+                                            <ReelPlayer
+                                                videoUrl={videoUrl}
+                                                videoFile={videoFile}
+                                                srtData={srtData}
+                                                htmlContent={previewOverride || generatedContent.html}
+                                                layoutConfig={generatedContent.layoutConfig}
+                                                fullScreenMode={isFullScreen}
+                                                toggleFullScreen={toggleFullScreen}
+                                                bgMusicUrl={bgMusicUrl}
+                                                bgMusicFile={bgMusicFile}
+                                                bgMusicVolume={bgMusicVolume}
+                                                assets={assets}
+                                                onTimeUpdate={setCurrentTime}
+                                                onDurationLoad={setVideoDuration}
+                                                externalSeekTime={externalSeekTime}
+                                            />
+                                        </div>
+
+                                        {/* Right: Code/Config Editor (Hidden if fullscreen) */}
+                                        {!isFullScreen && (
+                                            <div className="w-[450px] flex-shrink-0 border-l border-gray-800 bg-gray-900 z-10 shadow-2xl overflow-y-auto">
+                                                <EditorPanel
+                                                    content={generatedContent}
+                                                    isGenerating={isGenerating}
+                                                    onGenerate={handleGenerate}
+                                                    onUpdate={setGeneratedContent}
+                                                    videoFile={videoFile}
+                                                    topicContext={topicContext}
+                                                    onTopicContextChange={setTopicContext}
+                                                    srtText={srtTextRaw}
+                                                    bgMusicName={bgMusicFile?.name}
+                                                    onBgMusicChange={setBgMusicFile}
+                                                    bgMusicVolume={bgMusicVolume}
+                                                    onBgVolumeChange={setBgMusicVolume}
+                                                    apiKey={apiKey}
+                                                    setApiKey={setApiKey}
+                                                    modelName={modelName}
+                                                    setModelName={setModelName}
+                                                    onSaveApiKey={saveApiKeyToStorage}
+                                                    onPreviewOverride={setPreviewOverride}
+                                                    assets={assets}
+                                                    onAssetUpload={handleAssetUpload}
+                                                    onRemoveAsset={handleRemoveAsset}
+                                                    srtData={srtData}
+                                                    onSrtDataUpdate={setSrtData}
+                                                    duration={videoDuration}
+                                                    currentTime={currentTime}
+                                                    onSeek={(t) => setExternalSeekTime(t)}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {/* Right: Code/Config Editor (Hidden if fullscreen) */}
+                                    {/* Bottom: Timeline Bar (full width, below everything, never overlaps) */}
                                     {!isFullScreen && (
-                                        <div className="w-[450px] border-l border-gray-800 bg-gray-900 z-10 shadow-2xl">
-                                            <EditorPanel
-                                                content={generatedContent}
-                                                isGenerating={isGenerating}
-                                                onGenerate={handleGenerate}
-                                                onUpdate={setGeneratedContent}
-                                                videoFile={videoFile}
-                                                topicContext={topicContext}
-                                                onTopicContextChange={setTopicContext}
-                                                srtText={srtTextRaw}
-                                                bgMusicName={bgMusicFile?.name}
-                                                onBgMusicChange={setBgMusicFile}
-                                                bgMusicVolume={bgMusicVolume}
-                                                onBgVolumeChange={setBgMusicVolume}
-                                                apiKey={apiKey}
-                                                setApiKey={setApiKey}
-                                                modelName={modelName}
-                                                setModelName={setModelName}
-                                                onSaveApiKey={saveApiKeyToStorage}
-                                                onPreviewOverride={setPreviewOverride}
+                                        <div className="flex-shrink-0">
+                                            <VisualTimeline
+                                                duration={videoDuration}
+                                                currentTime={currentTime}
+                                                layoutConfig={generatedContent.layoutConfig}
+                                                srtData={srtData}
+                                                onSeek={(t) => setExternalSeekTime(t)}
+                                                onSubtitleClick={handleSubtitleClick}
                                             />
                                         </div>
                                     )}
@@ -617,6 +716,100 @@ const App: React.FC = () => {
                                             className="flex-1 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors"
                                         >
                                             Replace Scene
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Subtitle Edit Dialog */}
+                        {editingSubtitle && (
+                            <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                                <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/80 rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in ring-1 ring-white/5">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <Edit3 size={18} className="text-yellow-500" />
+                                            Edit Subtitle
+                                        </h3>
+                                        <button onClick={() => setEditingSubtitle(null)} className="text-gray-500 hover:text-white transition-colors">
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <div className="flex justify-between text-xs text-gray-500 font-mono mb-2">
+                                            <span>Start: {editingSubtitle.startTime.toFixed(2)}s</span>
+                                            <span>End: {editingSubtitle.endTime.toFixed(2)}s</span>
+                                        </div>
+                                        <textarea
+                                            value={editSubtitleText}
+                                            onChange={(e) => setEditSubtitleText(e.target.value)}
+                                            className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-lg text-white resize-none focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50"
+                                            autoFocus
+                                            placeholder="Enter subtitle text..."
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setEditingSubtitle(null)}
+                                            className="flex-1 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium text-sm transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleSaveSubtitle}
+                                            className="flex-1 py-2.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-bold text-sm transition-colors shadow-lg shadow-yellow-900/20"
+                                        >
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Save Project Dialog */}
+                        {showSaveDialog && (
+                            <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                                <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/80 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in ring-1 ring-white/5">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <Save size={18} className="text-blue-400" />
+                                            Save Project
+                                        </h3>
+                                        <button onClick={() => setShowSaveDialog(false)} className="text-gray-500 hover:text-white transition-colors">
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <label className="text-xs text-gray-400 mb-2 block">Project Name</label>
+                                        <input
+                                            type="text"
+                                            value={saveProjectName}
+                                            onChange={(e) => setSaveProjectName(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleConfirmSave();
+                                                if (e.key === 'Escape') setShowSaveDialog(false);
+                                            }}
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
+                                            autoFocus
+                                            placeholder="Enter project name..."
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowSaveDialog(false)}
+                                            className="flex-1 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium text-sm transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleConfirmSave}
+                                            className="flex-1 py-2.5 rounded-lg bg-white hover:bg-gray-200 text-black font-bold text-sm transition-colors shadow-lg"
+                                        >
+                                            Save
                                         </button>
                                     </div>
                                 </div>

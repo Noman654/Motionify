@@ -4,7 +4,31 @@ const fs = require('fs');
 const os = require('os');
 const { processHtml } = require('./htmlInliner.cjs');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
+
+// Resolve ffmpeg-static path cross-platform (dev + packaged app on Mac/Windows)
+// In packaged apps, node_modules are inside app.asar which is read-only.
+// ffmpeg-static must be in app.asar.unpacked (via asarUnpack in package.json)
+// so we replace 'app.asar/' with 'app.asar.unpacked/' in the resolved path.
+function getFFmpegPath() {
+    let rawPath = require('ffmpeg-static');
+    // Normalize Windows backslashes for consistent replacement
+    const normalized = rawPath.split(path.sep).join('/');
+    if (normalized.includes('app.asar/')) {
+        rawPath = rawPath.replace(
+            ['app.asar', 'node_modules'].join(path.sep),
+            ['app.asar.unpacked', 'node_modules'].join(path.sep)
+        );
+    } else {
+        // Fallback: simple replace (handles both separators)
+        rawPath = rawPath
+            .replace('app.asar' + path.sep, 'app.asar.unpacked' + path.sep)
+            .replace('app.asar/', 'app.asar.unpacked/');
+    }
+    return rawPath;
+}
+
+const ffmpegPath = getFFmpegPath();
+console.log('[FFmpeg] Resolved binary path:', ffmpegPath);
 
 // Setup FFmpeg Path
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -42,7 +66,7 @@ ipcMain.handle('init-overlay-window', async (event, { htmlContent, width, height
 
         // Detect if htmlContent is already a complete HTML document
         const isCompleteDoc = htmlContent.trim().toLowerCase().startsWith('<!doctype') ||
-                              htmlContent.trim().toLowerCase().startsWith('<html');
+            htmlContent.trim().toLowerCase().startsWith('<html');
 
         let finalHtml;
         if (isCompleteDoc) {
@@ -139,6 +163,7 @@ ipcMain.handle('close-overlay-window', async () => {
 });
 
 function createWindow() {
+    const isMac = process.platform === 'darwin';
     mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -149,7 +174,8 @@ function createWindow() {
             // webSecurity left at default (true) for the main window.
             // The offscreen overlay window uses webSecurity:false for cross-origin resources.
         },
-        titleBarStyle: 'hiddenInset',
+        // titleBarStyle 'hiddenInset' is macOS-only; on Windows use default
+        ...(isMac ? { titleBarStyle: 'hiddenInset' } : {}),
     });
 
     const startUrl = process.env.ELECTRON_START_URL || `file://${path.join(__dirname, '../dist/index.html')}`;
@@ -266,19 +292,64 @@ ipcMain.handle('end-render', async (event, { originalVideoPath, bgMusicPath, bgM
     console.log('Original Audio Source:', originalVideoPath);
     console.log('Output:', outputPath);
 
+    // --- Pass 1.5: Extract clean audio from original video ---
+    // Some video files contain data/metadata streams with unknown codecs that cause
+    // "Decoder (codec none) not found" errors. We extract ONLY the audio stream
+    // into a clean temp file to avoid this entirely.
+    const hasOriginal = originalVideoPath && fs.existsSync(originalVideoPath);
+    let cleanAudioPath = null;
+
+    if (hasOriginal) {
+        cleanAudioPath = path.join(os.tmpdir(), `reel_audio_${Date.now()}.aac`);
+        tempFilePaths.push(cleanAudioPath);
+
+        console.log('Pass 1.5: Extracting clean audio from original video...');
+        try {
+            await new Promise((resolve, reject) => {
+                ffmpeg(originalVideoPath)
+                    .noVideo()           // -vn: skip all video streams
+                    .outputOptions([
+                        '-map', '0:a:0', // select ONLY the first audio stream
+                        '-c:a', 'aac',
+                        '-b:a', '192k'
+                    ])
+                    .save(cleanAudioPath)
+                    .on('start', (cmd) => console.log('Audio extract cmd:', cmd))
+                    .on('error', (err) => {
+                        console.warn('Audio extraction failed (video may have no audio):', err.message);
+                        // If extraction fails, the video has no audio — that's fine
+                        cleanAudioPath = null;
+                        resolve();
+                    })
+                    .on('end', () => {
+                        console.log('Clean audio extracted to:', cleanAudioPath);
+                        resolve();
+                    });
+            });
+        } catch (e) {
+            console.warn('Audio extraction exception:', e.message);
+            cleanAudioPath = null;
+        }
+    }
+
+    // --- Pass 2: Merge video + clean audio ---
     return new Promise((resolve, reject) => {
         const command = ffmpeg();
 
-        // Input 1: Temp video (frames we rendered)
+        // Input 0: Temp video (rendered frames)
         command.input(tempVideoPath);
 
-        // Input 2: Original video (for audio)
-        if (originalVideoPath && fs.existsSync(originalVideoPath)) {
-            command.input(originalVideoPath);
+        // Input 1: Clean extracted audio (no problematic streams)
+        if (cleanAudioPath && fs.existsSync(cleanAudioPath)) {
+            command.input(cleanAudioPath);
+        } else {
+            // No usable audio from original
+            cleanAudioPath = null;
         }
 
-        // Input 3: Background music (optional)
-        if (bgMusicPath && fs.existsSync(bgMusicPath)) {
+        // Input 2: Background music (optional)
+        const hasBgMusic = bgMusicPath && fs.existsSync(bgMusicPath);
+        if (hasBgMusic) {
             command.input(bgMusicPath);
         }
 
@@ -286,30 +357,36 @@ ipcMain.handle('end-render', async (event, { originalVideoPath, bgMusicPath, bgM
         let filterComplex = '';
         let audioMap = '';
 
-        if (originalVideoPath && bgMusicPath) {
-            // Mix original audio [1:a] with bg music [2:a]
+        if (cleanAudioPath && hasBgMusic) {
             const vol = bgMusicVolume || 0.2;
             filterComplex = `[1:a]volume=1.0[a1];[2:a]volume=${vol}[a2];[a1][a2]amix=inputs=2:duration=shortest[aout]`;
             audioMap = '[aout]';
-        } else if (originalVideoPath) {
-            // Just use original video audio
-            audioMap = '1:a?';
+        } else if (cleanAudioPath) {
+            audioMap = '1:a';
+        } else if (hasBgMusic) {
+            // bg music becomes input 1 when no original audio
+            audioMap = '1:a';
         }
 
-        command
-            .outputOptions([
-                '-c:v copy',  // Copy video stream (no re-encode)
-                '-c:a aac',
-                '-b:a 192k',
-                '-shortest',
-                '-movflags +faststart'
-            ]);
+        const outOpts = [
+            '-c:v copy',
+            '-shortest',
+            '-movflags +faststart'
+        ];
+
+        if (audioMap) {
+            outOpts.push('-c:a aac', '-b:a 192k');
+        }
+
+        command.outputOptions(outOpts);
 
         if (filterComplex) {
             command.complexFilter(filterComplex);
-            command.outputOptions(['-map', '0:v', '-map', audioMap]);
+            command.outputOptions(['-map', '0:v:0', '-map', audioMap]);
         } else if (audioMap) {
-            command.outputOptions(['-map', '0:v', '-map', audioMap]);
+            command.outputOptions(['-map', '0:v:0', '-map', audioMap]);
+        } else {
+            command.outputOptions(['-map', '0:v:0']);
         }
 
         command

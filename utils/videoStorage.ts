@@ -1,7 +1,7 @@
 // Video Storage using IndexedDB (for large files)
 
 const DB_NAME = 'reel_composer_videos';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'videos';
 
 // Open or create IndexedDB

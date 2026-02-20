@@ -6,6 +6,14 @@ export interface SRTItem {
   text: string;
 }
 
+export interface MediaAsset {
+  id: string;
+  file: File;
+  name: string;
+  type: 'image' | 'video';
+  url: string; // Blob URL
+}
+
 export interface LayoutConfigStep {
   startTime: number;
   endTime: number;

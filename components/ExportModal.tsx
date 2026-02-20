@@ -1,8 +1,6 @@
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { flushSync } from 'react-dom';
-import { toCanvas } from 'html-to-image'; // Still used for subtitle capture only
-import { X, CheckCircle, AlertCircle, Loader2, Zap, FileCode } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, CheckCircle, AlertCircle, Loader2, Zap } from 'lucide-react';
 import { LayoutConfigStep, SRTItem } from '../types';
 
 interface ExportModalProps {
@@ -17,71 +15,9 @@ interface ExportModalProps {
     layoutConfig?: LayoutConfigStep[];
 }
 
-// --- HIDDEN SUBTITLE RENDERER (Exact Clone of ReelPlayer Logic) ---
-const SubtitleRenderer = ({ currentTime, srtData, layoutConfig }: { currentTime: number, srtData: SRTItem[], layoutConfig?: LayoutConfigStep[] }) => {
-    const currentCaption = useMemo(() => {
-        return srtData.find(item => currentTime >= item.startTime && currentTime <= item.endTime);
-    }, [currentTime, srtData]);
 
-    const isFullHtml = useMemo(() => {
-        if (!layoutConfig) return false;
-        const currentStep = layoutConfig.find(step => currentTime >= step.startTime && currentTime < step.endTime);
-        return currentStep?.layoutMode === 'full-html';
-    }, [currentTime, layoutConfig]);
+// SubtitleRenderer removed (using Canvas 2D now)
 
-    if (!currentCaption) return null;
-
-    const WORDS_PER_VIEW = 5;
-    const allWords = currentCaption.text.split(' ');
-    const duration = currentCaption.endTime - currentCaption.startTime;
-    const elapsed = currentTime - currentCaption.startTime;
-    const progress = Math.max(0, Math.min(1, elapsed / duration));
-    const globalActiveIndex = Math.floor(progress * allWords.length);
-    const currentChunkIndex = Math.floor(globalActiveIndex / WORDS_PER_VIEW);
-    const startWordIndex = currentChunkIndex * WORDS_PER_VIEW;
-    const endWordIndex = startWordIndex + WORDS_PER_VIEW;
-    const visibleWords = allWords.slice(startWordIndex, endWordIndex);
-
-    // Scaling Styles for 1080p (approx 2.5x base values)
-    const containerClasses = isFullHtml
-        ? 'bg-black/80 backdrop-blur-md border border-white/10 shadow-2xl rounded-[3rem]'
-        : ''; // Scaled rounded-2xl to rounded-[3rem]
-
-    return (
-        <div id="hidden-subtitle-render-target"
-            // ADDED font-sans to ensure system font usage
-            className={`font-sans flex flex-wrap justify-center items-center gap-x-4 gap-y-2 px-6 py-4 ${containerClasses}`}
-            style={{ width: '900px', textAlign: 'center' }}>
-            {visibleWords.map((word, index) => {
-                const trueIndex = startWordIndex + index;
-                const isActive = trueIndex === globalActiveIndex;
-                const isPast = trueIndex < globalActiveIndex;
-
-                return (
-                    <span key={trueIndex}
-                        style={{
-                            // Adjusted to 48px for balanced scaling (approx 3x or 24px base)
-                            fontSize: '48px',
-                            fontWeight: 900,
-                            // Added tracking-wide equivalent (0.025em)
-                            letterSpacing: '0.025em',
-                            lineHeight: 1.25, // leading-tight
-                            transform: isActive ? 'scale(1.1)' : 'scale(1)',
-                            textShadow: isActive
-                                ? '0 0 30px rgba(250, 204, 21, 0.6), 3px 3px 0px rgba(0,0,0,1)' // Matched 0.6 opacity
-                                : '3px 3px 0px rgba(0,0,0,0.8)',
-                            color: isActive ? '#facc15' : (isPast ? '#ffffff' : 'rgba(255,255,255,0.4)'),
-                            display: 'inline-block',
-                            transition: 'none'
-                        }}
-                    >
-                        {word}&nbsp;
-                    </span>
-                );
-            })}
-        </div>
-    );
-};
 
 export const ExportModal: React.FC<ExportModalProps> = ({
     isOpen, onClose, videoFile, htmlContent, bgMusicFile, bgMusicVolume = 0.2, duration = 10, srtData, layoutConfig = []
@@ -92,9 +28,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     const [logText, setLogText] = useState('');
     const [outputPath, setOutputPath] = useState('');
     const [isNative, setIsNative] = useState(false);
+    const [renderStartTime, setRenderStartTime] = useState(0);
+    const [renderEndTime, setRenderEndTime] = useState(duration);
 
-    // Export Time State to drive Subtitles
-    const [exportTime, setExportTime] = useState(0);
+
+    // Keep end time synced with duration
+    useEffect(() => { setRenderEndTime(duration); }, [duration]);
 
     useEffect(() => {
         setIsNative(!!window.electron);
@@ -118,14 +57,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const isRenderingRef = useRef(false);
 
     const startNativeRender = async () => {
+        if (isRenderingRef.current) {
+            console.warn('Render already in progress, ignoring duplicate call.');
+            return;
+        }
         if (!videoFile) {
             setLogText("Error: No video file found.");
             setStatus('error');
             return;
         }
         if (!isNative) return;
+
+        isRenderingRef.current = true;
 
         const electron = window.electron!;
 
@@ -181,15 +127,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             canvas.height = HEIGHT;
             const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
 
-            const totalFrames = Math.ceil(duration * FPS);
+            const clipStart = Math.max(0, renderStartTime);
+            const clipEnd = Math.min(duration, renderEndTime);
+            const clipDuration = clipEnd - clipStart;
+            const totalFrames = Math.ceil(clipDuration * FPS);
             let lastOverlayHeight = -1; // Track to avoid unnecessary resizes
 
             // === RENDER LOOP ===
             for (let i = 0; i < totalFrames; i++) {
-                const time = i / FPS;
+                const time = clipStart + i / FPS;
 
-                // 1. Sync subtitle state (flushSync ensures render before capture)
-                flushSync(() => setExportTime(time));
+                // 1. Sync subtitle state - REMOVED (No longer needed for React render)
 
                 // 2. Determine current layout
                 let currentLayout = layoutConfig.find(step => time >= step.startTime && time < step.endTime);
@@ -203,6 +151,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 }
 
                 const { layoutMode, splitRatio = 0.5 } = currentLayout;
+                const isFullHtml = layoutMode === 'full-html';
 
                 // 3. Calculate dimensions
                 let htmlH = HEIGHT * 0.5;
@@ -226,9 +175,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     lastOverlayHeight = roundedHtmlH;
                 }
 
-                // 5. Seek video
+                // 5. Seek video (optimized: no fixed delay; wait for seeked event)
                 video.currentTime = time;
-                await new Promise(r => setTimeout(r, 30));
                 if (video.seeking) {
                     await new Promise<void>(r => {
                         const h = () => { video.removeEventListener('seeked', h); r(); };
@@ -247,6 +195,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     const targetRatio = WIDTH / videoH;
                     let drawW = WIDTH, drawH = videoH, dx = 0, dy = videoY;
 
+                    // Strict 9:16 Cover (crop to fill)
                     if (vidRatio > targetRatio) {
                         drawH = videoH;
                         drawW = videoH * vidRatio;
@@ -281,29 +230,73 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }
                 }
 
-                // 9. DRAW SUBTITLES (still uses html-to-image for simple text elements)
-                const subTarget = document.getElementById('hidden-subtitle-render-target');
-                if (subTarget && srtData?.length) {
-                    try {
-                        const SUB_SCALE = 2;
-                        const subImg = await toCanvas(subTarget, {
-                            backgroundColor: null as any,
-                            skipAutoScale: true,
-                            pixelRatio: SUB_SCALE
-                        });
+                // 9. DRAW SUBTITLES (direct Canvas 2D text rendering — no DOM capture)
+                if (srtData?.length) {
+                    const currentSub = srtData.find(item => time >= item.startTime && time <= item.endTime);
+                    if (currentSub) {
+                        const WORDS_PER_VIEW = 5;
+                        const allWords = currentSub.text.split(' ');
+                        const subDuration = currentSub.endTime - currentSub.startTime;
+                        const subElapsed = time - currentSub.startTime;
+                        const subProgress = Math.max(0, Math.min(1, subElapsed / subDuration));
+                        const globalActiveIdx = Math.floor(subProgress * allWords.length);
+                        const chunkIdx = Math.floor(globalActiveIdx / WORDS_PER_VIEW);
+                        const startWordIdx = chunkIdx * WORDS_PER_VIEW;
+                        const visibleWords = allWords.slice(startWordIdx, startWordIdx + WORDS_PER_VIEW);
 
                         let subY = HEIGHT * 0.82;
                         if (layoutMode === 'split') {
-                            subY = (HEIGHT * splitRatio) - (subImg.height / SUB_SCALE / 2);
+                            subY = HEIGHT * splitRatio - 30;
                         } else if (layoutMode === 'full-video' || layoutMode === 'full-html') {
                             subY = HEIGHT * 0.8;
                         }
 
-                        const desiredWidth = 900;
-                        const desiredHeight = subImg.height / SUB_SCALE;
-                        const subX = (WIDTH - desiredWidth) / 2;
-                        ctx.drawImage(subImg, subX, subY, desiredWidth, desiredHeight);
-                    } catch (e) { /* subtitle capture failed, skip frame */ }
+                        // Draw subtitle background
+                        const fontSize = 48;
+                        ctx.font = `900 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+
+                        // Measure total width for background
+                        const totalText = visibleWords.join('  ');
+                        const metrics = ctx.measureText(totalText);
+                        const bgPadX = 30, bgPadY = 20;
+                        const bgW = metrics.width + bgPadX * 2;
+                        const bgH = fontSize * 1.5 + bgPadY * 2;
+                        const bgX = (WIDTH - bgW) / 2;
+                        const bgY = subY - bgH / 2;
+
+                        if (isFullHtml) {
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                            ctx.beginPath();
+                            ctx.roundRect(bgX, bgY, bgW, bgH, 24);
+                            ctx.fill();
+                            ctx.restore();
+                        }
+
+                        // Draw each word
+                        let drawX = WIDTH / 2 - metrics.width / 2;
+                        for (let wi = 0; wi < visibleWords.length; wi++) {
+                            const trueIdx = startWordIdx + wi;
+                            const isActive = trueIdx === globalActiveIdx;
+                            const isPast = trueIdx < globalActiveIdx;
+
+                            ctx.font = `900 ${isActive ? fontSize * 1.1 : fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+                            // Shadow
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                            ctx.fillText(visibleWords[wi], drawX + 3 + ctx.measureText(visibleWords[wi]).width / 2, subY + 3);
+                            ctx.restore();
+
+                            // Main text
+                            ctx.fillStyle = isActive ? '#facc15' : (isPast ? '#ffffff' : 'rgba(255,255,255,0.4)');
+                            ctx.fillText(visibleWords[wi], drawX + ctx.measureText(visibleWords[wi]).width / 2, subY);
+
+                            drawX += ctx.measureText(visibleWords[wi]).width + ctx.measureText('  ').width;
+                        }
+                    }
                 }
 
                 // 10. Send frame to FFmpeg
@@ -312,7 +305,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                 setProgress(Math.round((i / totalFrames) * 100));
                 setLogText(`Rendering: ${i + 1}/${totalFrames}`);
-                if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+                if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
             }
 
             // === FINALIZE ===
@@ -336,35 +329,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             // Ensure overlay window is cleaned up on error
             try { await window.electron?.closeOverlayWindow(); } catch (_) { }
         } finally {
+            isRenderingRef.current = false;
             if (videoUrl) URL.revokeObjectURL(videoUrl);
         }
     };
 
-    const startHtmlExport = async () => {
-        if (!isNative) return;
 
-        setStatus('rendering');
-        setLogText('Inlining external resources...');
-        setProgress(100); // Indeterminate or just full for HTML
-
-        try {
-            const electron = window.electron!;
-            const res = await electron.saveInlineHtml(htmlContent);
-
-            if (res.success) {
-                setStatus('done');
-                setOutputPath(res.filePath);
-                setLogText('');
-            } else {
-                if (res.error) throw new Error(res.error);
-                setStatus('idle'); // Cancelled
-            }
-        } catch (e: any) {
-            console.error(e);
-            setStatus('error');
-            setLogText('Error: ' + e.message);
-        }
-    };
 
     if (!isOpen) return null;
 
@@ -372,13 +342,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/80 rounded-2xl w-full max-w-md shadow-2xl shadow-black/50 p-6 animate-scale-in ring-1 ring-white/5">
 
-                {/* Hidden Render Elements — iframe removed; overlay capture is
-                    now handled by an offscreen BrowserWindow in the main process. */}
+                {/* Hidden Render Elements */}
                 <div className="fixed -left-[9999px] top-0" style={{ opacity: 1 }}>
                     <canvas ref={canvasRef} />
                     <video ref={videoRef} muted playsInline />
-                    {/* Synchronous React Subtitle Renderer */}
-                    <SubtitleRenderer currentTime={exportTime} srtData={srtData || []} layoutConfig={layoutConfig} />
                 </div>
 
                 <div className="flex justify-between items-center mb-6">
@@ -396,39 +363,59 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                                 Pixel-perfect render including all subtitle animations, colors, and effects.
                             </p>
                         </div>
+
+                        {/* Time Range Selection */}
+                        <div className="bg-gray-800/30 p-4 rounded-xl border border-gray-700/50 space-y-3">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Time Range</h4>
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <label className="text-[10px] text-gray-500 mb-1 block">Start (sec)</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={renderEndTime}
+                                        step={0.1}
+                                        value={renderStartTime}
+                                        onChange={(e) => setRenderStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                                <span className="text-gray-600 mt-4">→</span>
+                                <div className="flex-1">
+                                    <label className="text-[10px] text-gray-500 mb-1 block">End (sec)</label>
+                                    <input
+                                        type="number"
+                                        min={renderStartTime}
+                                        max={duration}
+                                        step={0.1}
+                                        value={renderEndTime}
+                                        onChange={(e) => setRenderEndTime(Math.min(duration, parseFloat(e.target.value) || duration))}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-gray-500">Duration: {Math.max(0, renderEndTime - renderStartTime).toFixed(1)}s ({Math.ceil(Math.max(0, renderEndTime - renderStartTime) * 30)} frames)</p>
+                        </div>
+
                         <button onClick={startNativeRender} disabled={!isNative} className="w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 text-white font-bold rounded-lg transition-all">
                             {isNative ? 'Start Render' : 'Requires Desktop App'}
-                        </button>
-
-                        <div className="h-px bg-gray-800 my-4" />
-
-                        <div className="bg-blue-900/20 p-4 rounded-xl border border-blue-500/30">
-                            <h3 className="text-blue-300 font-bold mb-1 flex items-center gap-2">
-                                <FileCode size={16} /> Offline HTML
-                            </h3>
-                            <p className="text-blue-200/60 text-sm">
-                                Save as a single, self-contained HTML file with all fonts, images, and styles inlined.
-                            </p>
-                        </div>
-                        <button onClick={startHtmlExport} disabled={!isNative} className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white font-bold rounded-lg transition-all">
-                            Download HTML File
                         </button>
                     </div>
                 )}
 
                 {(status === 'rendering' || status === 'merging') && (
-                    <div className="text-center space-y-4">
+                    <div className="text-center space-y-4 py-2">
                         <Loader2 className="animate-spin text-purple-500 mx-auto" size={40} />
                         <div className="text-2xl font-bold text-white">{progress}%</div>
                         <p className="text-sm text-gray-400">{logText}</p>
-                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-purple-500 transition-all" style={{ width: `${progress}%` }} />
+                        <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden border border-gray-700/50">
+                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
                         </div>
                     </div>
                 )}
 
                 {status === 'done' && (
-                    <div className="text-center space-y-4">
+                    <div className="text-center space-y-4 p-4 rounded-xl bg-green-500/5 border border-green-500/20">
                         <CheckCircle size={32} className="text-green-500 mx-auto" />
                         <h3 className="text-xl font-bold text-white">Export Completed</h3>
                         <p className="text-sm text-gray-400 break-all">Saved to: <span className="text-purple-300">{outputPath}</span></p>
@@ -446,11 +433,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 )}
 
                 {status === 'error' && (
-                    <div className="text-center space-y-4">
+                    <div className="text-center space-y-4 p-4 rounded-xl bg-red-500/5 border border-red-500/20">
                         <AlertCircle className="text-red-500 mx-auto" size={40} />
                         <h3 className="text-xl font-bold text-white">Error</h3>
                         <p className="text-sm text-red-300">{logText}</p>
-                        <button onClick={() => setStatus('idle')} className="px-4 py-2 bg-gray-700 text-white rounded-lg">Retry</button>
+                        <button onClick={() => setStatus('idle')} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">Retry</button>
                     </div>
                 )}
             </div>
