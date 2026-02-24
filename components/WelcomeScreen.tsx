@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ShieldCheck, AlertTriangle, ExternalLink, PlayCircle } from 'lucide-react';
+import { ArrowRight, ShieldCheck, AlertTriangle, ExternalLink, Gem, Zap, Layers, Sparkles } from 'lucide-react';
 import { validateGeminiConnection } from '../services/geminiService';
 import { APP_CONFIG } from '../config';
 
@@ -12,15 +12,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
   const [apiKey, setApiKey] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Default model enforced internally
+
   const selectedModel = APP_CONFIG.DEFAULT_MODEL;
 
-  // Prepopulate key if exists
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey && storedKey !== APP_CONFIG.DEFAULT_API_KEY) {
-        setApiKey(storedKey);
+      setApiKey(storedKey);
     }
   }, []);
 
@@ -29,14 +27,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
       setError("Please enter a valid API Key.");
       return;
     }
-    
+
     setIsValidating(true);
     setError(null);
-    
+
     const isValid = await validateGeminiConnection(apiKey, selectedModel);
-    
+
     setIsValidating(false);
-    
+
     if (isValid) {
       onComplete(apiKey, selectedModel);
     } else {
@@ -45,96 +43,161 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
   };
 
   const handleManualSkip = () => {
-    // Pass null to indicate manual mode (no API key)
     onComplete(null);
   };
 
+  const features = [
+    { icon: Sparkles, label: 'AI Scene Generation', desc: 'Gemini-powered visuals from your script' },
+    { icon: Layers, label: 'Multi-track Timeline', desc: 'Sync layouts, captions & animations' },
+    { icon: Zap, label: 'One-Click Export', desc: 'FFmpeg rendering with background music' },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6 relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-900/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-pink-900/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.12] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-deep)] p-6 relative overflow-hidden">
+      {/* Ambient Background */}
+      <div className="absolute top-[-20%] left-[20%] w-[700px] h-[700px] bg-purple-900/10 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[15%] w-[500px] h-[500px] bg-fuchsia-900/8 rounded-full blur-[140px] pointer-events-none" />
 
-      <div className="max-w-xl w-full glass-panel rounded-3xl p-8 md:p-12 shadow-2xl shadow-purple-900/10 relative z-10 animate-fade-in flex flex-col items-center ring-1 ring-white/5">
-        {/* Soft glow behind card */}
-        <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-xl -z-10 opacity-60" />
+      <div className="max-w-4xl w-full glass-panel-elevated rounded-[2rem] shadow-2xl shadow-purple-900/10 relative z-10 animate-scale-in overflow-hidden">
+        {/* Top gradient line */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-400/30 to-transparent" />
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 mb-8 shadow-xl shadow-purple-900/40 rotate-3 hover:rotate-6 hover:scale-105 transition-all duration-300">
-            <PlayCircle className="text-white fill-white/20" size={48} />
+        <div className="flex flex-col lg:flex-row min-h-[520px]">
+          {/* Left: Brand Section */}
+          <div className="lg:w-[45%] p-10 lg:p-12 flex flex-col justify-center relative overflow-hidden">
+            {/* Subtle animated glow */}
+            <div className="absolute -top-20 -left-20 w-60 h-60 bg-purple-500/10 rounded-full blur-[80px] animate-breathe" />
+
+            <div className="relative z-10 space-y-8">
+              {/* Logo */}
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-purple-900/40 animate-glow">
+                  <Gem size={28} className="text-white drop-shadow-lg" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-display font-bold tracking-tight text-white leading-none">
+                    Lumina Studio
+                  </h1>
+                  <span className="text-[10px] text-gray-500 font-mono tracking-[0.2em] uppercase">Creative Suite</span>
+                </div>
+              </div>
+
+              {/* Tagline */}
+              <p className="text-gray-400 text-lg font-light leading-relaxed max-w-sm">
+                Transform scripts into cinematic short-form video with AI-powered scene design.
+              </p>
+
+              {/* Feature List */}
+              <div className="space-y-4 pt-2">
+                {features.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 animate-slide-up"
+                    style={{ animationDelay: `${i * 100 + 200}ms`, animationFillMode: 'backwards' }}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                      <f.icon size={14} className="text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white leading-tight">{f.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <h1 className="text-5xl md:text-6xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-pink-200 tracking-tighter leading-tight">
-            Reel Composer
-          </h1>
-          <p className="text-gray-400 mt-6 text-xl font-light max-w-sm mx-auto leading-relaxed">
-            AI-powered director for high-retention video content.
-          </p>
-        </div>
 
-        {/* API Key Form */}
-        <div className="w-full space-y-6 animate-fade-in">
-            
-            <div className="space-y-3">
+          {/* Divider */}
+          <div className="hidden lg:block w-px bg-gradient-to-b from-transparent via-white/8 to-transparent" />
+
+          {/* Right: Auth Section */}
+          <div className="lg:flex-1 p-10 lg:p-12 flex flex-col justify-center">
+            <div className="space-y-8">
+              {/* Step Indicator */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center">1</div>
+                  <span className="text-xs font-medium text-white">Connect</span>
+                </div>
+                <div className="flex-1 h-px bg-white/10" />
+                <div className="flex items-center gap-1.5 opacity-30">
+                  <div className="w-6 h-6 rounded-full bg-white/10 text-gray-500 text-[10px] font-bold flex items-center justify-center">2</div>
+                  <span className="text-xs text-gray-600">Upload</span>
+                </div>
+                <div className="flex-1 h-px bg-white/10" />
+                <div className="flex items-center gap-1.5 opacity-30">
+                  <div className="w-6 h-6 rounded-full bg-white/10 text-gray-500 text-[10px] font-bold flex items-center justify-center">3</div>
+                  <span className="text-xs text-gray-600">Create</span>
+                </div>
+              </div>
+
+              {/* API Key Input */}
+              <div className="space-y-3">
                 <div className="flex justify-between items-center px-1">
-                    <label className="text-sm font-semibold text-gray-300">Google Gemini API Key</label>
-                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium transition-colors">
-                        <ExternalLink size={12} /> Get Free Key
-                    </a>
+                  <label className="text-sm font-semibold text-gray-300">Gemini API Key</label>
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium transition-colors">
+                    <ExternalLink size={11} /> Get Free Key
+                  </a>
                 </div>
                 <div className="relative group">
-                    <input
+                  <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleValidation()}
                     placeholder="Paste your API Key here (AIzaSy...)"
-                    className="w-full bg-black/50 border border-gray-700 rounded-2xl px-5 py-4 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all font-mono text-sm placeholder-gray-600 shadow-inner"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-purple-500/5 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+                    className="w-full input-base bg-black/50 px-5 py-4 text-white rounded-xl font-mono text-sm placeholder-gray-600 shadow-inner"
+                  />
+                  <div className="absolute inset-0 rounded-xl border border-purple-500/0 group-focus-within:border-purple-500/30 pointer-events-none transition-colors" />
                 </div>
-                
+
                 <div className="flex items-start gap-2 px-1">
-                    <ShieldCheck className="text-green-500/80 shrink-0 mt-0.5" size={14} />
-                    <p className="text-[11px] text-gray-500 leading-tight">
-                        Your key is stored locally in your browser and sent directly to Google.
-                    </p>
+                  <ShieldCheck className="text-emerald-500/60 shrink-0 mt-0.5" size={13} />
+                  <p className="text-[11px] text-gray-600 leading-tight">
+                    Stored locally. Sent directly to Google's API only.
+                  </p>
                 </div>
-            </div>
+              </div>
 
-            <button
-            onClick={handleValidation}
-            disabled={isValidating}
-            className={`w-full py-5 rounded-2xl font-bold text-lg transition-all shadow-xl flex items-center justify-center gap-3 active:scale-[0.99] ${
-                isValidating 
-                ? 'bg-gray-800 cursor-not-allowed text-gray-500' 
-                : 'bg-white text-black hover:bg-gray-100 hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)] hover:scale-[1.01]'
-            }`}
-            >
-            {isValidating ? (
-                <span className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-gray-500 border-t-white rounded-full animate-spin"></div>
+              {/* Submit Button */}
+              <button
+                onClick={handleValidation}
+                disabled={isValidating}
+                className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-3 active:scale-[0.99] ${isValidating
+                    ? 'bg-gray-800 cursor-not-allowed text-gray-500'
+                    : 'btn-primary'
+                  }`}
+              >
+                {isValidating ? (
+                  <span className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-purple-300/40 border-t-white rounded-full animate-spin" />
                     Verifying...
-                </span>
-            ) : (
-                <>Enter Studio <ArrowRight size={20} /></>
-            )}
-            </button>
-            
-            {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center justify-center gap-2 animate-shake text-center">
-                <AlertTriangle size={16} className="shrink-0" /> {error}
-                </div>
-            )}
+                  </span>
+                ) : (
+                  <>Enter Studio <ArrowRight size={18} /></>
+                )}
+              </button>
 
-            <div className="pt-6 border-t border-gray-800/50 text-center">
-                <button 
-                    onClick={handleManualSkip}
-                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+              {/* Error */}
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center justify-center gap-2 animate-fade-in text-center">
+                  <AlertTriangle size={14} className="shrink-0" /> {error}
+                </div>
+              )}
+
+              {/* Manual Mode */}
+              <div className="pt-4 border-t border-white/5 text-center">
+                <button
+                  onClick={handleManualSkip}
+                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors group"
                 >
-                    Or enter manual mode (No AI features)
+                  Skip setup — <span className="underline decoration-gray-700 underline-offset-4 group-hover:decoration-gray-400">use manual mode</span>
                 </button>
+                <p className="text-[10px] text-gray-700 mt-1.5">Paste AI output manually. No API required.</p>
+              </div>
             </div>
+          </div>
         </div>
       </div>
     </div>

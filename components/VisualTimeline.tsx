@@ -1,144 +1,164 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { LayoutConfigStep, SRTItem } from '../types';
-import { Clock, ZoomIn, ZoomOut, Play, Pause } from 'lucide-react';
+
+import React, { useMemo } from 'react';
+import { SRTItem, LayoutConfigStep } from '../types';
 
 interface VisualTimelineProps {
     duration: number;
     currentTime: number;
     layoutConfig: LayoutConfigStep[];
-    srtData?: SRTItem[];
+    srtData: SRTItem[];
     onSeek: (time: number) => void;
-    onUpdateStep?: (index: number, newStep: LayoutConfigStep) => void;
-    onSubtitleClick?: (item: SRTItem) => void;
+    onSubtitleClick?: (subtitle: SRTItem) => void;
 }
 
 export const VisualTimeline: React.FC<VisualTimelineProps> = ({
-    duration,
-    currentTime,
-    layoutConfig,
-    srtData,
-    onSeek,
-    onUpdateStep,
-    onSubtitleClick
+    duration, currentTime, layoutConfig, srtData, onSeek, onSubtitleClick
 }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [zoom, setZoom] = useState(1); // 1 = fit, >1 = zoomed in
+    const sortedSteps = useMemo(() =>
+        [...(layoutConfig?.steps || [])].sort((a, b) => a.startTime - b.startTime),
+        [layoutConfig]
+    );
 
-    // Sort steps by start time just in case
-    const sortedSteps = useMemo(() => {
-        return [...layoutConfig].sort((a, b) => a.startTime - b.startTime);
-    }, [layoutConfig]);
-
-    const getStepStyle = (step: LayoutConfigStep) => {
-        const totalSeconds = duration || 10; // Avoid div by zero
-        const startPercent = (step.startTime / totalSeconds) * 100;
-        const endPercent = (Math.min(step.endTime, totalSeconds) / totalSeconds) * 100;
-        const widthPercent = Math.max(endPercent - startPercent, 0.5); // Min width
-
-        let color = 'bg-gray-700';
-        if (step.layoutMode === 'split') color = 'bg-blue-600';
-        if (step.layoutMode === 'full-video') color = 'bg-purple-600';
-        if (step.layoutMode === 'full-html') color = 'bg-green-600';
-
-        return {
-            left: `${startPercent}%`,
-            width: `${widthPercent}%`,
-            className: `${color} absolute top-1 bottom-1 rounded-md opacity-80 hover:opacity-100 transition-all cursor-pointer border border-white/10 group overflow-hidden`
-        };
+    const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = clickX / rect.width;
+        onSeek(ratio * duration);
     };
 
-    const handleTimelineClick = (e: React.MouseEvent) => {
-        if (!containerRef.current || !duration) return;
-        const rect = containerRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const percent = x / rect.width;
-        const time = percent * duration;
-        onSeek(Math.max(0, Math.min(time, duration)));
-    };
+    // Time markers
+    const markers = useMemo(() => {
+        if (duration <= 0) return [];
+        const interval = duration > 30 ? 10 : 5;
+        const result = [];
+        for (let t = interval; t < duration; t += interval) {
+            result.push(t);
+        }
+        return result;
+    }, [duration]);
+
+    const playheadPosition = duration > 0 ? `${(currentTime / duration) * 100}%` : '0%';
+
+    const stepColors = [
+        { bg: 'bg-violet-500/20', border: 'border-violet-500/40', text: 'text-violet-300' },
+        { bg: 'bg-fuchsia-500/20', border: 'border-fuchsia-500/40', text: 'text-fuchsia-300' },
+        { bg: 'bg-cyan-500/20', border: 'border-cyan-500/40', text: 'text-cyan-300' },
+        { bg: 'bg-amber-500/20', border: 'border-amber-500/40', text: 'text-amber-300' },
+        { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-300' },
+        { bg: 'bg-pink-500/20', border: 'border-pink-500/40', text: 'text-pink-300' },
+        { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' },
+    ];
+
+    if (duration <= 0) return null;
 
     return (
-        <div className="w-full bg-gray-950 border-t border-white/10 p-2 select-none h-32 flex flex-col">
-            <div className="flex items-center justify-between mb-1 px-2">
-                <div className="flex items-center gap-2 text-xs text-gray-400 font-mono">
-                    <Clock size={12} />
-                    <span>{currentTime.toFixed(1)}s / {duration.toFixed(1)}s</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-600 uppercase tracking-widest font-bold">Timeline</span>
-                </div>
+        <div className="w-full bg-[var(--color-bg-surface-1)] border-t border-white/[0.06] select-none flex-shrink-0" style={{ height: '100px' }}>
+            {/* Time markers row */}
+            <div className="flex items-center h-5 relative ml-[52px]" style={{ marginRight: 0 }}>
+                {markers.map(t => (
+                    <div
+                        key={t}
+                        className="absolute text-[9px] font-mono text-gray-600 -translate-x-1/2"
+                        style={{ left: `${(t / duration) * 100}%` }}
+                    >
+                        {Math.floor(t)}s
+                    </div>
+                ))}
             </div>
 
-            <div
-                className="relative flex-1 bg-gray-900 rounded-lg overflow-hidden cursor-crosshair border border-white/5"
-                ref={containerRef}
-                onClick={handleTimelineClick}
-            >
-                {/* Grid Lines (Every 5 seconds) */}
-                <div className="absolute inset-0 pointer-events-none opacity-20 z-0">
-                    {Array.from({ length: Math.ceil(duration / 5) }).map((_, i) => (
+            {/* Tracks */}
+            <div className="flex flex-col gap-0.5 relative">
+                {/* Layout Track */}
+                <div className="flex items-stretch" style={{ height: '36px' }}>
+                    <div className="track-label">Layout</div>
+                    <div
+                        className="flex-1 relative cursor-pointer bg-white/[0.015]"
+                        onClick={handleTimelineClick}
+                    >
+                        {/* Grid lines */}
+                        {markers.map(t => (
+                            <div key={t} className="absolute top-0 h-full w-px bg-white/[0.03]" style={{ left: `${(t / duration) * 100}%` }} />
+                        ))}
+
+                        {/* Steps */}
+                        {sortedSteps.map((step: LayoutConfigStep, index: number) => {
+                            const left = `${(step.startTime / duration) * 100}%`;
+                            const stepDuration = (step.endTime ?? duration) - step.startTime;
+                            const width = `${(stepDuration / duration) * 100}%`;
+                            const color = stepColors[index % stepColors.length];
+
+                            return (
+                                <div
+                                    key={index}
+                                    className={`absolute top-[3px] bottom-[3px] rounded-md ${color.bg} border ${color.border} ${color.text} flex items-center px-2 text-[9px] font-bold truncate hover:brightness-125 cursor-pointer transition-all`}
+                                    style={{ left, width, minWidth: '20px' }}
+                                    title={`Step ${index + 1}: ${step.startTime.toFixed(1)}s - ${(step.endTime ?? duration).toFixed(1)}s (${step.layoutMode})`}
+                                >
+                                    <span className="truncate opacity-80">
+                                        {step.layoutMode === 'full-video' ? 'Video' : step.layoutMode === 'split' ? 'Split' : step.layoutMode === 'pip-html' ? 'PiP' : step.layoutMode === 'full-html' ? 'HTML' : step.layoutMode}
+                                    </span>
+                                </div>
+                            );
+                        })}
+
+                        {/* Playhead */}
                         <div
-                            key={i}
-                            className="absolute top-0 bottom-0 border-l border-white/50 text-[8px] text-white pl-1 pt-1"
-                            style={{ left: `${(i * 5 / duration) * 100}%` }}
+                            className="absolute top-0 h-full z-30 pointer-events-none transition-[left] duration-75"
+                            style={{ left: playheadPosition }}
                         >
-                            {i * 5}s
+                            {/* Triangle indicator */}
+                            <div className="absolute -top-[1px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-transparent border-t-white/80" />
+                            <div className="w-[2px] h-full bg-white/80 -translate-x-1/2" />
                         </div>
-                    ))}
+                    </div>
                 </div>
 
-                {/* Track 1: Layout Mode */}
-                <div className="absolute top-1 left-0 right-0 h-8 z-10">
-                    {sortedSteps.map((step, index) => {
-                        const style = getStepStyle(step);
-                        const isActive = currentTime >= step.startTime && currentTime < step.endTime;
-                        return (
-                            <div
-                                key={`layout-${index}`}
-                                className={`${style.className} ${isActive ? 'ring-1 ring-white brightness-110' : ''}`}
-                                style={{ left: style.left, width: style.width }}
-                                title={`${step.layoutMode}`}
-                            >
-                                <div className="px-2 py-1 text-[9px] font-bold text-white truncate drop-shadow-md">
-                                    {step.layoutMode}
+                {/* Captions Track */}
+                <div className="flex items-stretch" style={{ height: '32px' }}>
+                    <div className="track-label">Caps</div>
+                    <div
+                        className="flex-1 relative cursor-pointer bg-white/[0.01]"
+                        onClick={handleTimelineClick}
+                    >
+                        {/* Grid lines */}
+                        {markers.map(t => (
+                            <div key={t} className="absolute top-0 h-full w-px bg-white/[0.03]" style={{ left: `${(t / duration) * 100}%` }} />
+                        ))}
+
+                        {/* Subtitles */}
+                        {srtData?.map((item: SRTItem, index: number) => {
+                            const left = `${(item.startTime / duration) * 100}%`;
+                            const sWidth = `${((item.endTime - item.startTime) / duration) * 100}%`;
+                            const isActive = currentTime >= item.startTime && currentTime <= item.endTime;
+
+                            return (
+                                <div
+                                    key={index}
+                                    className={`absolute top-[3px] bottom-[3px] rounded-md flex items-center px-1.5 text-[8px] truncate cursor-pointer transition-all border ${isActive
+                                        ? 'bg-emerald-500/25 border-emerald-500/50 text-emerald-200 shadow-sm shadow-emerald-500/10'
+                                        : 'bg-white/[0.03] border-white/5 text-gray-600 hover:bg-white/[0.06] hover:text-gray-400'
+                                        }`}
+                                    style={{ left, width: sWidth, minWidth: '8px' }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onSubtitleClick) onSubtitleClick(item);
+                                        else onSeek(item.startTime);
+                                    }}
+                                    title={item.text}
+                                >
+                                    {parseFloat(sWidth) > 3 && <span className="truncate">{item.text}</span>}
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
 
-                {/* Track 2: Subtitles */}
-                <div className="absolute top-10 left-0 right-0 h-8 z-10">
-                    {srtData?.map((item, index) => {
-                        const startPercent = (item.startTime / (duration || 10)) * 100;
-                        const endPercent = (item.endTime / (duration || 10)) * 100;
-                        const widthPercent = Math.max(endPercent - startPercent, 0.5);
-                        const isActive = currentTime >= item.startTime && currentTime < item.endTime;
-
-                        return (
-                            <div
-                                key={`sub-${item.id}`}
-                                className={`absolute top-0 bottom-0 rounded-md bg-yellow-500/20 border border-yellow-500/30 hover:bg-yellow-500/40 transition-colors cursor-pointer overflow-hidden ${isActive ? 'ring-1 ring-yellow-400 bg-yellow-500/30' : ''}`}
-                                style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
-                                onClick={(e) => {
-                                    e.stopPropagation(); // Prevent seek
-                                    onSubtitleClick && onSubtitleClick(item);
-                                }}
-                                title={item.text}
-                            >
-                                <div className="px-1 py-0.5 text-[8px] text-yellow-100 truncate w-full h-full leading-tight">
-                                    {item.text}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Playhead */}
-                <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.8)]"
-                    style={{ left: `${(currentTime / duration) * 100}%` }}
-                >
-                    <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
+                        {/* Playhead */}
+                        <div
+                            className="absolute top-0 h-full z-30 pointer-events-none transition-[left] duration-75"
+                            style={{ left: playheadPosition }}
+                        >
+                            <div className="w-[2px] h-full bg-white/80 -translate-x-1/2" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

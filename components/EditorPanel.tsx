@@ -300,7 +300,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 border-l border-gray-800">
+    <div className="h-full flex flex-col bg-[var(--color-bg-surface-0)]">
       {/* ... styles ... */}
       {/* Custom CSS for Prism theme customization */}
       <style>{`
@@ -349,166 +349,66 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         }
       `}</style>
 
-      <div className="flex border-b border-white/5 bg-black/20 p-3 sticky top-0 z-20 backdrop-blur-md">
-        <div className="w-full flex bg-black/40 p-1 rounded-full border border-white/5 relative">
-          {/* Animated Background could go here with Framer Motion, but CSS transition works for now */}
+      <div className="flex border-b border-white/[0.05] bg-[var(--color-bg-surface-1)] p-2.5 sticky top-0 z-20 backdrop-blur-xl">
+        <div className="w-full flex bg-black/30 p-0.5 rounded-xl border border-white/[0.04]">
           <button
             onClick={() => setActiveTab('config')}
-            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'config' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${activeTab === 'config' || activeTab === 'ai_audio' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            <Layout size={14} /> <span className="tracking-wide">Layout</span>
+            <Layout size={13} /> <span>Design</span>
           </button>
           <button
             onClick={() => setActiveTab('html')}
-            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'html' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${activeTab === 'html' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            <Code size={14} /> <span className="tracking-wide">HTML</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('ai_audio')}
-            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'ai_audio' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
-          >
-            <Sparkles size={14} className={activeTab === 'ai_audio' ? "text-purple-400" : ""} /> <span className="tracking-wide">Studio</span>
+            <Code size={13} /> <span>Code</span>
           </button>
           <button
             onClick={() => setActiveTab('assets')}
-            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'assets' ? 'bg-gray-800 text-white shadow-lg ring-1 ring-white/10' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${activeTab === 'assets' || activeTab === 'subtitles' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            <ImageIcon size={14} /> <span className="tracking-wide">Assets</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('subtitles')}
-            className={`flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-full transition-all duration-300 ${activeTab === 'subtitles' ? 'bg-gray-800 text-yellow-400 shadow-lg ring-1 ring-yellow-500/20' : 'text-gray-500 hover:text-gray-300'}`}
-          >
-            <Type size={14} /> <span className="tracking-wide">Subs</span>
+            <ImageIcon size={13} /> <span>Media</span>
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 relative">
-        {activeTab === 'config' && (
-          <div className="h-full visual-editor-container border border-white/5 rounded-xl bg-black/40 overflow-hidden">
-            <div className="prism-code">
-              <Editor
-                value={localConfig}
-                onValueChange={setLocalConfig}
-                highlight={highlightJSON}
-                padding={20}
-                style={{
-                  minHeight: '100%',
-                  fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  background: 'transparent'
-                }}
-              />
-            </div>
-          </div>
-        )}
-        {activeTab === 'html' && (
-          <div className="flex flex-col h-full space-y-2 -m-4 p-4">
-            {/* HTML Editor Toolbar */}
-            <div className="flex items-center gap-2 bg-gray-800/50 p-2 rounded border border-gray-700 shrink-0">
+      <div className="flex-1 overflow-auto p-3 relative">
+        {(activeTab === 'config' || activeTab === 'ai_audio') && (
+          <div className="space-y-4 text-sm">
+            {/* Layout Config Editor */}
+            <div className="accordion-section">
               <button
-                onClick={() => setSearchVisible(!searchVisible)}
-                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs flex items-center gap-1.5 transition-colors"
-                title="Toggle Search"
+                onClick={() => setActiveTab(activeTab === 'config' ? 'ai_audio' : 'config')}
+                className="accordion-header w-full"
               >
-                <Search size={14} />
-                Search
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Layout size={12} /> Layout JSON
+                </span>
+                <span className="text-[10px] text-gray-600">{activeTab === 'config' ? '▼' : '▶'}</span>
               </button>
-
-              <div className="h-4 w-px bg-gray-700 mx-1" />
-
-              <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
-                <button
-                  onClick={() => setViewMode('original')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'original' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-300'}`}
-                >
-                  Original
-                </button>
-                <button
-                  onClick={() => {
-                    if (!offlineHtml) generateOfflineHtml();
-                    else setViewMode('offline');
-                  }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${viewMode === 'offline' ? 'bg-blue-900/50 text-blue-200 border border-blue-500/30' : 'text-gray-400 hover:text-gray-300'}`}
-                >
-                  {isGeneratingOffline ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Zap size={10} />}
-                  Offline Version
-                </button>
-              </div>
-
-              <div className="flex-1"></div>
-
-              {viewMode === 'original' && (
-                <button
-                  onClick={() => setLocalHtml(formatHtml(localHtml))}
-                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs flex items-center gap-1.5 transition-colors"
-                  title="Format HTML"
-                >
-                  <Code size={14} />
-                  Format
-                </button>
-              )}
-
-              <span className="text-[10px] text-gray-500">
-                {(viewMode === 'original' ? localHtml : (offlineHtml || '')).split('\n').length} lines
-              </span>
-            </div>
-
-            {/* Search Bar */}
-            {searchVisible && (
-              <div className="flex items-center gap-2 bg-black/40 p-2 rounded-lg border border-white/5 animate-fade-in shrink-0">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search in HTML..."
-                  className="flex-1 bg-transparent border-none text-xs text-white focus:ring-0 outline-none"
-                  autoFocus
-                />
-                <button
-                  onClick={handleSearch}
-                  className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs transition-colors font-medium"
-                >
-                  Find
-                </button>
-              </div>
-            )}
-
-            {/* HTML Visual Editor */}
-            <div className="flex-1 visual-editor-container border border-gray-800 relative overflow-hidden flex flex-col">
-              {/* Scroll Container */}
-              <div className="flex-1 overflow-auto custom-scrollbar">
-                <div className="prism-code min-h-full">
-                  <Editor
-                    value={viewMode === 'original' ? localHtml : (offlineHtml || 'Generating offline version...')}
-                    onValueChange={viewMode === 'original' ? handleLocalHtmlChange : handleOfflineHtmlChange}
-                    highlight={highlightHTML}
-                    padding={16}
-                    style={{
-                      minHeight: '100%',
-                      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                      fontSize: 14,
-                      lineHeight: 1.6,
-                      background: '#0a0a0f',
-                      pointerEvents: isGeneratingOffline ? 'none' : 'auto', // Disable only when generating
-                      opacity: isGeneratingOffline ? 0.8 : 1
-                    }}
-                    textareaId="html-editor-textarea"
-                  />
+              {activeTab === 'config' && (
+                <div className="visual-editor-container border-t border-white/[0.04] bg-[var(--color-bg-deep)]" style={{ maxHeight: '280px', overflow: 'auto' }}>
+                  <div className="prism-code">
+                    <Editor
+                      value={localConfig}
+                      onValueChange={setLocalConfig}
+                      highlight={highlightJSON}
+                      padding={16}
+                      style={{
+                        minHeight: '100%',
+                        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+                        fontSize: 12,
+                        lineHeight: 1.6,
+                        background: 'transparent'
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-        )}
-        {activeTab === 'ai_audio' && (
-          <div className="space-y-6 text-sm">
 
             {/* Visual Context / Refinement Instructions */}
-            <div className={`p-5 rounded-2xl space-y-3 transition-all relative overflow-hidden group ${hasContent ? 'glass-panel border-purple-500/30 shadow-[0_0_30px_-10px_rgba(168,85,247,0.15)]' : 'glass-panel'}`}>
+            <div className={`p-4 rounded-xl space-y-3 transition-all relative overflow-hidden ${hasContent ? 'border border-purple-500/20 bg-purple-500/5' : 'border border-white/[0.06] bg-white/[0.02]'}`}>
               <div className="flex justify-between items-center relative z-10">
                 <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
                   {hasContent ? <><RefreshCw size={14} className="text-purple-400" /> Refine Scene</> : <><Edit2 size={14} className="text-gray-400" /> Visual Context</>}
@@ -518,8 +418,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               <textarea
                 value={topicContext}
                 onChange={(e) => onTopicContextChange(e.target.value)}
-                className="w-full h-24 bg-black/40 border border-white/10 focus:border-purple-500/50 p-4 text-xs text-gray-300 resize-none focus:outline-none rounded-xl placeholder:text-gray-600 transition-all focus:ring-1 focus:ring-purple-500/20"
-                placeholder={hasContent ? "Describe changes to make... e.g. 'Make the background blue' or 'Add particles'" : "Describe your video topic... e.g. 'Quantum Physics explanation with grids'"}
+                className="w-full h-20 input-base bg-black/30 p-3 text-xs text-gray-300 resize-none rounded-xl placeholder:text-gray-600"
+                placeholder={hasContent ? "Describe changes to make..." : "Describe your topic..."}
               />
 
               <div className="flex gap-2 relative z-10">
@@ -534,7 +434,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             </div>
 
             {/* Internal Generator & Settings */}
-            <div className="glass-panel p-5 rounded-2xl space-y-4 relative overflow-hidden group border border-white/10">
+            <div className="border border-white/[0.06] p-4 rounded-xl space-y-3 relative overflow-hidden bg-white/[0.02]">
               <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl"></div>
               <div className="absolute top-4 right-4 p-2 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
                 <Sparkles size={24} className="text-purple-400/20 group-hover:text-purple-400/40 transform rotate-12" />
@@ -573,13 +473,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   <button
                     onClick={onGenerate}
                     disabled={isGenerating || !apiKey}
-                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all shadow-lg relative overflow-hidden group/btn ${!apiKey
-                      ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                      : 'bg-white text-black hover:scale-[1.02]'
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all relative overflow-hidden ${!apiKey
+                      ? 'bg-white/[0.04] text-gray-600 cursor-not-allowed border border-white/5'
+                      : 'btn-primary'
                       }`}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-200 via-white to-purple-200 opacity-0 group-hover/btn:opacity-20 transition-opacity blur-xl"></div>
-                    {isGenerating ? <div className="w-4 h-4 border-2 border-gray-500 border-t-black rounded-full animate-spin" /> : <Sparkles size={16} className={!apiKey ? "text-gray-500" : "text-purple-600"} />}
+                    {isGenerating ? <div className="w-4 h-4 border-2 border-purple-400/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={14} />}
                     <span className="relative z-10">{hasContent ? "Update Scene" : "Generate Scene"}</span>
                   </button>
                 </div>
@@ -647,26 +546,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               )}
             </div>
 
-            {/* External Intelligence */}
-            <div className="glass-panel p-4 rounded-xl space-y-3">
-              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
-                <MessageSquare size={14} className="text-blue-400" /> External Intelligence
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <a href="https://chatgpt.com/" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-teal-500/50">
-                  <Bot size={14} className="text-teal-400" /> ChatGPT
-                </a>
-                <a href="https://claude.ai/new" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-orange-500/50">
-                  <BrainCircuit size={14} className="text-orange-400" /> Claude
-                </a>
-                <a href="https://gemini.google.com/app" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-blue-500/50">
-                  <Sparkles size={14} className="text-blue-400" /> Gemini
-                </a>
-                <a href="https://chat.deepseek.com/" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 glass-button py-3 rounded-lg text-xs font-medium hover:bg-white/10 hover:border-blue-400/50">
-                  <Cpu size={14} className="text-blue-300" /> DeepSeek
-                </a>
-              </div>
-            </div>
+
 
             {/* Audio Tools */}
             <div className="glass-panel p-4 rounded-xl space-y-3">
@@ -699,18 +579,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             </div>
 
             {/* Background Music */}
-            <div className="glass-panel p-4 rounded-xl space-y-3">
+            <div className="border border-white/[0.06] p-4 rounded-xl space-y-3 bg-white/[0.02]">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
-                  <Music size={14} className="text-indigo-400" /> Background Music
+                <h3 className="font-bold text-white flex items-center gap-2 text-[11px] uppercase tracking-wider">
+                  <Music size={12} className="text-fuchsia-400" /> Background Music
                 </h3>
-                <span className="text-[10px] text-gray-500">{(bgMusicVolume * 100).toFixed(0)}% Vol</span>
+                <span className="text-[10px] text-gray-600 font-mono">{(bgMusicVolume * 100).toFixed(0)}%</span>
               </div>
 
               {bgMusicName ? (
-                <div className="flex items-center justify-between bg-black/40 border border-white/5 rounded-lg p-2.5">
+                <div className="flex items-center justify-between bg-black/30 border border-white/5 rounded-lg p-2.5">
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <FileAudio size={14} className="text-purple-400 flex-shrink-0" />
+                    <FileAudio size={13} className="text-fuchsia-400 flex-shrink-0" />
                     <span className="text-xs text-white truncate">{bgMusicName}</span>
                   </div>
                   <button
@@ -718,12 +598,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded transition-colors"
                     title="Remove Music"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={11} />
                   </button>
                 </div>
               ) : (
-                <label className="flex items-center justify-center gap-2 w-full p-2.5 border border-dashed border-gray-600 rounded-lg text-xs text-gray-400 hover:text-white hover:border-gray-500 cursor-pointer transition-colors hover:bg-white/5">
-                  <Music size={14} /> Upload Music
+                <label className="flex items-center justify-center gap-2 w-full p-2.5 border border-dashed border-white/10 rounded-lg text-xs text-gray-500 hover:text-white hover:border-white/20 cursor-pointer transition-colors hover:bg-white/[0.03]">
+                  <Music size={13} /> Upload Music
                   <input
                     type="file"
                     accept="audio/*"
@@ -738,10 +618,109 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 min="0" max="1" step="0.05"
                 value={bgMusicVolume}
                 onChange={(e) => onBgVolumeChange(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
               />
             </div>
 
+          </div>
+        )}
+
+        {activeTab === 'html' && (
+          <div className="flex flex-col h-full space-y-2">
+            {/* HTML Editor Toolbar */}
+            <div className="flex items-center gap-2 bg-white/[0.02] p-2 rounded-lg border border-white/[0.04] shrink-0">
+              <button
+                onClick={() => setSearchVisible(!searchVisible)}
+                className="px-2.5 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 rounded-md text-[11px] flex items-center gap-1.5 transition-colors border border-white/[0.06]"
+                title="Toggle Search"
+              >
+                <Search size={12} />
+                Search
+              </button>
+
+              <div className="h-4 w-px bg-white/[0.06] mx-0.5" />
+
+              <div className="flex bg-black/30 rounded-lg p-0.5 border border-white/[0.04]">
+                <button
+                  onClick={() => setViewMode('original')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${viewMode === 'original' ? 'bg-white/[0.08] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Original
+                </button>
+                <button
+                  onClick={() => {
+                    if (!offlineHtml) generateOfflineHtml();
+                    else setViewMode('offline');
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 ${viewMode === 'offline' ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  {isGeneratingOffline ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Zap size={10} />}
+                  Offline
+                </button>
+              </div>
+
+              <div className="flex-1" />
+
+              {viewMode === 'original' && (
+                <button
+                  onClick={() => setLocalHtml(formatHtml(localHtml))}
+                  className="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-md text-[11px] flex items-center gap-1.5 transition-colors border border-purple-500/20"
+                  title="Format HTML"
+                >
+                  <Code size={12} />
+                  Format
+                </button>
+              )}
+
+              <span className="text-[9px] text-gray-600 font-mono">
+                {(viewMode === 'original' ? localHtml : (offlineHtml || '')).split('\n').length}L
+              </span>
+            </div>
+
+            {/* Search Bar */}
+            {searchVisible && (
+              <div className="flex items-center gap-2 bg-black/30 p-2 rounded-lg border border-white/[0.04] animate-fade-in shrink-0">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Search in HTML..."
+                  className="flex-1 bg-transparent border-none text-xs text-white focus:ring-0 outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSearch}
+                  className="px-3 py-1 bg-purple-600/30 hover:bg-purple-600/40 text-purple-300 rounded-md text-xs transition-colors font-medium border border-purple-500/20"
+                >
+                  Find
+                </button>
+              </div>
+            )}
+
+            {/* HTML Visual Editor */}
+            <div className="flex-1 visual-editor-container border border-white/[0.04] rounded-xl relative overflow-hidden flex flex-col">
+              <div className="flex-1 overflow-auto custom-scrollbar">
+                <div className="prism-code min-h-full">
+                  <Editor
+                    value={viewMode === 'original' ? localHtml : (offlineHtml || 'Generating offline version...')}
+                    onValueChange={viewMode === 'original' ? handleLocalHtmlChange : handleOfflineHtmlChange}
+                    highlight={highlightHTML}
+                    padding={16}
+                    style={{
+                      minHeight: '100%',
+                      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                      background: '#07070c',
+                      pointerEvents: isGeneratingOffline ? 'none' : 'auto',
+                      opacity: isGeneratingOffline ? 0.8 : 1
+                    }}
+                    textareaId="html-editor-textarea"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -770,8 +749,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     <div
                       key={item.id}
                       className={`group rounded-lg border transition-all ${isActive
-                          ? 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_12px_-4px_rgba(234,179,8,0.3)]'
-                          : 'bg-black/20 border-white/5 hover:border-white/15 hover:bg-black/30'
+                        ? 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_12px_-4px_rgba(234,179,8,0.3)]'
+                        : 'bg-black/20 border-white/5 hover:border-white/15 hover:bg-black/30'
                         }`}
                     >
                       {/* Time + Controls Row */}
@@ -868,6 +847,22 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
         {activeTab === 'assets' && (
           <div className="flex flex-col h-full space-y-4">
+            {/* Sub-tabs for Media */}
+            <div className="flex bg-white/[0.02] p-0.5 rounded-lg border border-white/[0.04] w-fit">
+              <button
+                onClick={() => setActiveTab('assets')}
+                className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'assets' ? 'bg-white/[0.06] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                🖼 Assets
+              </button>
+              <button
+                onClick={() => setActiveTab('subtitles')}
+                className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'subtitles' ? 'bg-white/[0.06] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                📝 Subtitles
+              </button>
+            </div>
+
             {/* Upload Area */}
             <div className="p-4 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
               <input
@@ -948,12 +943,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         )}
       </div>
 
-      <div className="p-4 border-t border-white/5 bg-black/20">
+      <div className="p-3 border-t border-white/[0.05] bg-[var(--color-bg-surface-1)]">
         <button
           onClick={handleSave}
-          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-purple-900/40"
+          className="w-full flex items-center justify-center gap-2 btn-primary py-2.5 rounded-xl font-bold text-sm"
         >
-          <Save size={16} /> Apply Changes
+          <Save size={14} /> Apply Changes
         </button>
       </div>
     </div>

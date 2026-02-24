@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileVideo, FileText, ArrowRight, Download, ExternalLink, Music, Wand2, Mic, Play, FileAudio, Disc, Video, Clapperboard, Sparkles, CheckSquare, Edit2, Save, X, Headphones, Trash2, ArrowLeft, Github, Folder } from 'lucide-react';
+import { Upload, FileVideo, FileText, ArrowRight, Download, ExternalLink, Music, Wand2, Mic, Play, FileAudio, Disc, Video, Clapperboard, Sparkles, CheckSquare, Edit2, Save, X, Headphones, Trash2, ArrowLeft, Folder, Gem, ChevronDown } from 'lucide-react';
 import { extractWavFromVideo } from '../utils/audioHelpers';
 import { generateSRT, generateTTS } from '../services/geminiService';
 
@@ -9,7 +9,7 @@ interface FileUploadProps {
     onFilesSelected: (videoFile: File, srtFile: File, isAudioOnly: boolean) => void;
     apiKey: string;
     onBack: () => void;
-    onOpenProjects?: () => void; // NEW: Open projects library
+    onOpenProjects?: () => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey, onBack, onOpenProjects }) => {
@@ -26,42 +26,38 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         else setAudioSrt(file);
     };
 
-    const [srtContent, setSrtContent] = useState<string>(""); // For editing
+    const [srtContent, setSrtContent] = useState<string>("");
     const [isEditingSrt, setIsEditingSrt] = useState(false);
 
     // --- Video Mode State ---
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [isExtracting, setIsExtracting] = useState(false);
     const [isAutoGeneratingSRT, setIsAutoGeneratingSRT] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // --- Audio/TTS Mode State ---
     const [audioSourceType, setAudioSourceType] = useState<'upload' | 'tts'>('upload');
-    const [audioFile, setAudioFile] = useState<File | null>(null); // Source upload
+    const [audioFile, setAudioFile] = useState<File | null>(null);
     const [ttsScript, setTtsScript] = useState('');
     const [ttsVoice, setTtsVoice] = useState<'male' | 'female'>('male');
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-    const [generatedAudioFile, setGeneratedAudioFile] = useState<File | null>(null); // Result of TTS
+    const [generatedAudioFile, setGeneratedAudioFile] = useState<File | null>(null);
 
     // --- Refs ---
     const generationActiveRef = useRef(false);
 
     // --- Effects ---
-
-    // When the active SRT file changes (or tab switch), load content
     useEffect(() => {
         if (currentSrt) {
             currentSrt.text().then(text => setSrtContent(text));
         } else {
             setSrtContent("");
         }
-        // Reset editing mode on tab switch or file clear
         setIsEditingSrt(false);
     }, [currentSrt, activeTab]);
 
     // --- Common Helpers ---
-
     const handleSrtSave = () => {
-        // Convert edited string back to File
         const file = new File([srtContent], currentSrt?.name || "edited.srt", { type: "text/plain" });
         setCurrentSrt(file);
         setIsEditingSrt(false);
@@ -116,7 +112,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
 
     const handleAutoGenerateSRT = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        // Identify Source: Video File OR Audio File (Uploaded or Generated)
         let sourceFile: File | null = null;
         if (activeTab === 'video') sourceFile = videoFile;
         else sourceFile = generatedAudioFile || audioFile;
@@ -135,18 +130,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
 
         try {
             const srtString = await generateSRT(sourceFile, apiKey);
-
-            // Check if cancelled during await
             if (!generationActiveRef.current) return;
-
             const file = new File([srtString], "auto_generated.srt", { type: "text/plain" });
             setCurrentSrt(file);
         } catch (err: any) {
-            // Check if cancelled during await
             if (!generationActiveRef.current) return;
-
             console.error(err);
-            // ERROR FIX: Show the actual API error instead of generic 20MB warning
             alert(`Auto-generation failed: ${err.message || "Unknown error occurred"}`);
         } finally {
             if (generationActiveRef.current) {
@@ -166,8 +155,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
     const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setAudioFile(e.target.files[0]);
-            setGeneratedAudioFile(null); // Clear previous TTS if uploading new
-            setAudioSrt(null); // Reset SRT when new audio is uploaded
+            setGeneratedAudioFile(null);
+            setAudioSrt(null);
         }
     };
 
@@ -175,14 +164,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         if (!ttsScript.trim() || !apiKey) return;
         setIsGeneratingAudio(true);
         try {
-            // 1. Generate Audio Blob
             const audioBlob = await generateTTS(ttsScript, ttsVoice, apiKey);
             const audioFile = new File([audioBlob], `generated_${ttsVoice}.wav`, { type: 'audio/wav' });
             setGeneratedAudioFile(audioFile);
-            setAudioFile(null); // Clear upload if TTS is used
-            setAudioSrt(null); // Reset SRT so user can generate new one
-
-            // Note: We do NOT auto-generate SRT anymore, user must click the button.
+            setAudioFile(null);
+            setAudioSrt(null);
         } catch (err) {
             console.error(err);
             alert("Failed to generate audio. See console for details.");
@@ -191,14 +177,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         }
     };
 
-
     const handleNext = () => {
         if (activeTab === 'video') {
             if (videoFile && currentSrt) {
                 onFilesSelected(videoFile, currentSrt, false);
             }
         } else {
-            // For audio mode, use generated file OR uploaded file
             const finalAudio = generatedAudioFile || audioFile;
             if (finalAudio && currentSrt) {
                 onFilesSelected(finalAudio, currentSrt, true);
@@ -222,17 +206,45 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         setCurrentSrt(null);
     };
 
-    // --- Renderers ---
+    // Drag and Drop handlers
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
 
-    // Reusable SRT Card Component
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent, type: 'video' | 'audio' | 'srt') => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        if (type === 'video') setVideoFile(file);
+        else if (type === 'audio') { setAudioFile(file); setGeneratedAudioFile(null); setAudioSrt(null); }
+        else setCurrentSrt(file);
+    };
+
+    // Completion status
+    const isReady = activeTab === 'video'
+        ? (videoFile && currentSrt)
+        : ((generatedAudioFile || audioFile) && currentSrt);
+
+    // --- Renderers ---
     const renderSRTSection = () => {
-        // Logic to disable upload button for TTS mode
         const isTTSMode = activeTab === 'audio' && audioSourceType === 'tts';
-        // Logic to enable auto-generate: Need source file
         const hasSource = activeTab === 'video' ? !!videoFile : (!!audioFile || !!generatedAudioFile);
 
         return (
-            <div className={`border-2 border-dashed rounded-2xl transition-all h-64 relative overflow-hidden flex flex-col ${currentSrt ? 'border-green-500/80 bg-green-900/10 ring-1 ring-green-500/20' : 'border-gray-700 bg-gray-900/60 hover:border-green-500/50 hover:bg-gray-900/80'}`}>
+            <div
+                className={`border rounded-2xl transition-all h-64 relative overflow-hidden flex flex-col ${isDragging ? 'border-green-400/50 bg-green-900/10 scale-[1.01]' :
+                        currentSrt ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-white/8 bg-white/[0.02] hover:border-white/12 hover:bg-white/[0.03]'
+                    }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, 'srt')}
+            >
                 {!isEditingSrt ? (
                     <>
                         <input
@@ -241,71 +253,70 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                             onChange={handleSrtChange}
                             className="hidden"
                             id="srt-upload"
-                            disabled={isAutoGeneratingSRT || isTTSMode} // Disable upload in TTS mode as requested
+                            disabled={isAutoGeneratingSRT || isTTSMode}
                         />
 
                         {currentSrt ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-6 relative w-full">
                                 <button
                                     onClick={handleRemoveSrt}
-                                    className="absolute top-2 right-2 p-1.5 bg-gray-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-gray-500 transition-colors z-20"
+                                    className="absolute top-3 right-3 p-1.5 bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-gray-500 transition-colors z-20"
                                     title="Remove Captions"
                                 >
-                                    <X size={14} />
+                                    <X size={13} />
                                 </button>
-                                <div className="p-3 rounded-full bg-green-500 text-white mb-2 shadow-lg">
-                                    <CheckSquare size={24} />
+                                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 mb-3">
+                                    <CheckSquare size={22} />
                                 </div>
-                                <p className="font-bold text-white text-md max-w-[80%] truncate mb-1">{currentSrt.name}</p>
-                                <p className="text-xs text-green-400 font-mono mb-4">{(currentSrt.size / 1024).toFixed(1)} KB</p>
+                                <p className="font-semibold text-white text-sm max-w-[80%] truncate mb-0.5">{currentSrt.name}</p>
+                                <p className="text-[11px] text-emerald-400/70 font-mono mb-4">{(currentSrt.size / 1024).toFixed(1)} KB</p>
 
                                 <div className="flex gap-2 z-10">
-                                    <button onClick={() => setIsEditingSrt(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs text-white transition-colors">
-                                        <Edit2 size={12} /> Edit
+                                    <button onClick={() => setIsEditingSrt(true)} className="flex items-center gap-1.5 px-3 py-1.5 glass-button rounded-lg text-xs text-white transition-colors">
+                                        <Edit2 size={11} /> Edit
                                     </button>
-                                    <button onClick={handleDownloadSrt} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs text-white transition-colors">
-                                        <Download size={12} /> Download
+                                    <button onClick={handleDownloadSrt} className="flex items-center gap-1.5 px-3 py-1.5 glass-button rounded-lg text-xs text-white transition-colors">
+                                        <Download size={11} /> Download
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4">
-                                <p className="text-gray-400 text-sm">Add Captions</p>
+                                <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Add Captions</p>
                                 <div className="grid grid-cols-1 gap-2 w-full max-w-xs">
                                     <div className="flex gap-2 w-full">
                                         <button
                                             onClick={handleAutoGenerateSRT}
                                             disabled={!hasSource || isAutoGeneratingSRT}
-                                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border font-bold text-sm transition-all ${!hasSource
-                                                ? 'border-gray-700 text-gray-600 cursor-not-allowed bg-gray-800/50'
-                                                : 'border-purple-500 bg-purple-600/10 text-purple-300 hover:bg-purple-600 hover:text-white hover:shadow-lg hover:shadow-purple-900/30'
+                                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border font-semibold text-sm transition-all ${!hasSource
+                                                ? 'border-white/5 text-gray-600 cursor-not-allowed bg-white/[0.02]'
+                                                : 'border-purple-500/30 bg-purple-500/8 text-purple-300 hover:bg-purple-500/15 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-900/20'
                                                 }`}
                                         >
-                                            {isAutoGeneratingSRT ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Wand2 size={16} />}
-                                            {isAutoGeneratingSRT ? "Generating..." : "Auto-Generate (AI)"}
+                                            {isAutoGeneratingSRT ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Wand2 size={14} />}
+                                            {isAutoGeneratingSRT ? "Generating..." : "Auto-Generate"}
                                         </button>
 
                                         {isAutoGeneratingSRT && (
                                             <button
                                                 onClick={handleCancelGeneration}
-                                                className="p-3 rounded-xl border border-red-500 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                                                className="p-3 rounded-xl border border-red-500/30 bg-red-500/8 text-red-400 hover:bg-red-500/15 transition-colors"
                                                 title="Cancel Generation"
                                             >
-                                                <X size={16} />
+                                                <X size={14} />
                                             </button>
                                         )}
                                     </div>
 
-                                    {/* Only show Upload Button if NOT in TTS Mode */}
                                     {!isTTSMode && (
                                         <label
                                             htmlFor="srt-upload"
-                                            className={`flex items-center justify-center gap-2 p-3 rounded-xl border border-gray-600 bg-gray-800 text-gray-300 transition-colors font-medium text-sm ${isAutoGeneratingSRT
-                                                ? 'opacity-50 cursor-not-allowed pointer-events-none'
-                                                : 'hover:bg-gray-700 hover:text-white cursor-pointer'
+                                            className={`flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs text-gray-500 transition-colors ${isAutoGeneratingSRT
+                                                ? 'opacity-40 cursor-not-allowed pointer-events-none'
+                                                : 'hover:text-gray-300 cursor-pointer hover:bg-white/[0.03]'
                                                 }`}
                                         >
-                                            <Upload size={16} /> Upload .SRT
+                                            <Upload size={13} /> or upload .SRT file
                                         </label>
                                     )}
                                 </div>
@@ -313,22 +324,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                         )}
                     </>
                 ) : (
-                    // Editor Mode
-                    <div className="flex flex-col h-full w-full bg-gray-950">
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900">
-                            <span className="text-xs font-bold text-gray-400">Editing Subtitles</span>
-                            <div className="flex gap-2">
-                                <button onClick={() => setIsEditingSrt(false)} className="text-gray-500 hover:text-white"><X size={14} /></button>
-                            </div>
+                    <div className="flex flex-col h-full w-full bg-[var(--color-bg-surface-0)]">
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-white/[0.02]">
+                            <span className="text-xs font-semibold text-gray-400">Editing Subtitles</span>
+                            <button onClick={() => setIsEditingSrt(false)} className="text-gray-500 hover:text-white"><X size={13} /></button>
                         </div>
                         <textarea
                             value={srtContent}
                             onChange={(e) => setSrtContent(e.target.value)}
-                            className="flex-1 w-full bg-gray-950 p-3 text-xs font-mono text-green-400 outline-none resize-none focus:bg-black"
+                            className="flex-1 w-full bg-transparent p-3 text-xs font-mono text-emerald-400 outline-none resize-none"
                             spellCheck={false}
                         />
-                        <button onClick={handleSrtSave} className="w-full py-2 bg-green-600 hover:bg-green-500 text-white font-bold text-xs flex items-center justify-center gap-2">
-                            <Save size={12} /> Save Changes
+                        <button onClick={handleSrtSave} className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors">
+                            <Save size={11} /> Save Changes
                         </button>
                     </div>
                 )}
@@ -337,95 +345,124 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
     };
 
     return (
-        <div className="flex flex-col h-full w-full animate-fade-in relative">
+        <div className="flex flex-col h-full w-full relative state-enter">
 
             {/* Scrollable Main Content */}
-            <div className="flex-1 flex flex-col items-center justify-center p-6 w-full overflow-y-auto custom-scrollbar">
+            <div className="flex-1 flex flex-col items-center justify-center p-6 w-full overflow-y-auto">
 
-                <div className="w-full max-w-5xl space-y-8 my-auto">
-                    {/* Header */}
-                    <div className="text-center space-y-4 mb-8 relative">
-                        {/* Projects Button - Top Right (ONLY if callback provided) */}
-                        {onOpenProjects && (
-                            <button
-                                onClick={onOpenProjects}
-                                className="absolute -top-2 right-0 flex items-center gap-2 px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/30 rounded-lg text-purple-300 hover:text-white transition-colors shadow-lg"
-                                title="Browse saved projects"
-                            >
-                                <Folder size={16} />
-                                <span className="hidden sm:inline font-medium text-sm">My Projects</span>
-                            </button>
-                        )}
+                <div className="w-full max-w-4xl space-y-6 my-auto">
 
-                        <h1 className="text-5xl md:text-7xl font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600 tracking-tighter leading-tight">
-                            Reel Composer
-                        </h1>
-                        <p className="text-gray-400 text-lg md:text-xl font-light">
-                            Create viral shorts from any media source.
-                        </p>
+                    {/* Compact Header with Step Progress */}
+                    <div className="space-y-5">
+                        {/* Step Progress */}
+                        <div className="flex items-center gap-3 max-w-md mx-auto">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-bold flex items-center justify-center border border-purple-500/30">✓</div>
+                                <span className="text-xs text-gray-500">Connect</span>
+                            </div>
+                            <div className="flex-1 h-px bg-purple-500/20" />
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg shadow-purple-500/30">2</div>
+                                <span className="text-xs font-medium text-white">Upload</span>
+                            </div>
+                            <div className="flex-1 h-px bg-white/10" />
+                            <div className="flex items-center gap-1.5 opacity-30">
+                                <div className="w-6 h-6 rounded-full bg-white/10 text-gray-500 text-[10px] font-bold flex items-center justify-center">3</div>
+                                <span className="text-xs text-gray-600">Create</span>
+                            </div>
+                        </div>
+
+                        {/* Title + Projects */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-2xl font-display font-bold tracking-tight text-white">
+                                    Import Media
+                                </h2>
+                                <p className="text-sm text-gray-500 mt-0.5">
+                                    {activeTab === 'video' ? 'Add your video footage and captions' : 'Create from audio or text-to-speech'}
+                                </p>
+                            </div>
+                            {onOpenProjects && (
+                                <button
+                                    onClick={onOpenProjects}
+                                    className="flex items-center gap-2 px-4 py-2.5 glass-button rounded-xl text-sm font-medium text-gray-400 hover:text-white"
+                                    title="Browse saved projects"
+                                >
+                                    <Folder size={15} />
+                                    <span className="hidden sm:inline">Projects</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div className="flex border-b border-gray-800 w-full max-w-md mx-auto mb-4">
+                    {/* Mode Tabs */}
+                    <div className="flex bg-white/[0.03] p-1 rounded-xl border border-white/5 w-fit">
                         <button
                             onClick={() => setActiveTab('video')}
-                            className={`flex-1 pb-3 text-sm font-bold text-center transition-all relative ${activeTab === 'video' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-                                }`}
+                            className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'video'
+                                ? 'bg-white/[0.08] text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-300'}`}
                         >
-                            Video Studio
-                            {activeTab === 'video' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-500 rounded-t-full" />}
+                            <span className="flex items-center gap-2"><Clapperboard size={14} /> Video Studio</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('audio')}
-                            className={`flex-1 pb-3 text-sm font-bold text-center transition-all relative ${activeTab === 'audio' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-                                }`}
+                            className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'audio'
+                                ? 'bg-white/[0.08] text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-300'}`}
                         >
-                            Audio Visualizer
-                            {activeTab === 'audio' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-pink-500 rounded-t-full" />}
+                            <span className="flex items-center gap-2"><Music size={14} /> Audio Mode</span>
                         </button>
                     </div>
 
-                    <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-xl shadow-black/20 ring-1 ring-white/5">
+                    {/* Upload Cards */}
+                    <div className="glass-panel rounded-2xl p-6 md:p-8 border border-white/[0.06]">
                         {activeTab === 'video' ? (
-                            // --- VIDEO UPLOAD MODE ---
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                                 <div className="space-y-3">
                                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                        <Clapperboard size={14} /> Source Footage
+                                        <Clapperboard size={13} /> Source Footage
                                     </h3>
-                                    <div className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-all h-64 relative overflow-hidden group ${videoFile ? 'border-purple-500/80 bg-purple-900/10 ring-1 ring-purple-500/20' : 'border-gray-700 bg-gray-900/60 hover:border-purple-500/60 hover:bg-gray-900/80'}`}>
+                                    <div
+                                        className={`border rounded-2xl p-6 flex flex-col items-center justify-center transition-all h-64 relative overflow-hidden group ${isDragging ? 'border-purple-400/50 bg-purple-900/10 scale-[1.01]' :
+                                                videoFile ? 'border-purple-500/30 bg-purple-950/10' : 'border-white/8 bg-white/[0.02] hover:border-white/12 hover:bg-white/[0.03]'
+                                            }`}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, 'video')}
+                                    >
                                         <input type="file" accept="video/*" onChange={handleVideoChange} className="hidden" id="video-upload" />
 
                                         {videoFile ? (
                                             <div className="relative w-full h-full flex flex-col items-center justify-center z-10">
                                                 <button
                                                     onClick={handleRemoveVideo}
-                                                    className="absolute top-[-10px] right-[-10px] p-2 bg-gray-800 hover:bg-red-500 hover:text-white rounded-full text-gray-400 transition-colors shadow-lg"
+                                                    className="absolute top-[-8px] right-[-8px] p-1.5 bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-gray-500 transition-colors shadow-lg z-20"
                                                     title="Remove Video"
                                                 >
-                                                    <X size={16} />
+                                                    <X size={14} />
                                                 </button>
 
-                                                <div className="p-4 rounded-full bg-purple-500 text-white mb-4">
-                                                    <FileVideo size={32} />
+                                                <div className="p-3.5 rounded-xl bg-purple-500/10 text-purple-400 mb-3">
+                                                    <FileVideo size={28} />
                                                 </div>
                                                 <div className="text-center px-4">
-                                                    <p className="font-bold text-lg text-white truncate max-w-[200px]">{videoFile.name}</p>
-                                                    <p className="text-xs text-gray-500 mt-1">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                                                    <p className="font-semibold text-sm text-white truncate max-w-[200px]">{videoFile.name}</p>
+                                                    <p className="text-[11px] text-gray-500 mt-1 font-mono">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
                                                 </div>
 
-                                                <button onClick={handleExtractAudio} disabled={isExtracting} className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-black/60 hover:bg-black/80 backdrop-blur text-xs text-gray-300 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors">
-                                                    {isExtracting ? <span className="animate-pulse">Processing...</span> : <><Download size={12} /> Get WAV</>}
+                                                <button onClick={handleExtractAudio} disabled={isExtracting} className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 glass-button text-[11px] text-gray-400 px-3 py-1.5 rounded-lg hover:text-white">
+                                                    {isExtracting ? <span className="animate-pulse text-xs">Processing...</span> : <><Download size={11} /> Get WAV</>}
                                                 </button>
                                             </div>
                                         ) : (
-                                            <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center space-y-4 w-full h-full justify-center z-10">
-                                                <div className="p-4 rounded-full bg-gray-800 text-purple-400 group-hover:scale-110 transition-transform duration-300">
-                                                    <FileVideo size={32} />
+                                            <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full h-full justify-center z-10">
+                                                <div className="p-4 rounded-xl bg-white/[0.04] text-purple-400 group-hover:scale-105 transition-transform duration-300 border border-white/5">
+                                                    <FileVideo size={28} />
                                                 </div>
                                                 <div className="text-center">
-                                                    <p className="font-bold text-lg text-white">Select Video</p>
-                                                    <p className="text-xs text-gray-500 mt-1">MP4, MOV, WEBM</p>
+                                                    <p className="font-semibold text-sm text-white">Drop video here</p>
+                                                    <p className="text-[11px] text-gray-600 mt-1">or click to browse · MP4, MOV, WEBM</p>
                                                 </div>
                                             </label>
                                         )}
@@ -434,50 +471,56 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
 
                                 <div className="space-y-3">
                                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                        <FileText size={14} /> Subtitles
+                                        <FileText size={13} /> Captions
                                     </h3>
                                     {renderSRTSection()}
                                 </div>
                             </div>
                         ) : (
                             // --- AUDIO / TTS MODE ---
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                                 <div className="space-y-4">
-                                    <div className="flex bg-black/40 p-1 rounded-lg w-fit border border-gray-700">
-                                        <button onClick={() => setAudioSourceType('upload')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${audioSourceType === 'upload' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Upload File</button>
-                                        <button onClick={() => setAudioSourceType('tts')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${audioSourceType === 'tts' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Text to Speech</button>
+                                    <div className="flex bg-white/[0.03] p-1 rounded-lg w-fit border border-white/5">
+                                        <button onClick={() => setAudioSourceType('upload')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${audioSourceType === 'upload' ? 'bg-white/[0.08] text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Upload File</button>
+                                        <button onClick={() => setAudioSourceType('tts')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${audioSourceType === 'tts' ? 'bg-white/[0.08] text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Text to Speech</button>
                                     </div>
 
                                     {audioSourceType === 'upload' ? (
-                                        <div className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-all h-60 relative ${audioFile ? 'border-pink-500 bg-pink-900/10' : 'border-gray-700 hover:border-pink-500/30 bg-black/20'}`}>
+                                        <div
+                                            className={`border rounded-xl p-8 flex flex-col items-center justify-center transition-all h-60 relative ${audioFile ? 'border-fuchsia-500/30 bg-fuchsia-950/10' : 'border-white/8 hover:border-white/12 bg-white/[0.02]'
+                                                }`}
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDrop(e, 'audio')}
+                                        >
                                             <input type="file" accept="audio/*,.wav,.mp3,.m4a" onChange={handleAudioFileChange} className="hidden" id="audio-upload" />
 
                                             {audioFile ? (
                                                 <>
                                                     <button
                                                         onClick={handleRemoveAudio}
-                                                        className="absolute top-2 right-2 p-1.5 bg-gray-800 hover:bg-red-500 hover:text-white rounded-full text-gray-400 transition-colors shadow-lg z-20"
+                                                        className="absolute top-2 right-2 p-1.5 bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-gray-500 transition-colors shadow-lg z-20"
                                                     >
-                                                        <X size={14} />
+                                                        <X size={13} />
                                                     </button>
                                                     <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full h-full justify-center z-10">
-                                                        <div className="p-4 rounded-full bg-pink-500 text-white">
-                                                            <Music size={28} />
+                                                        <div className="p-3.5 rounded-xl bg-fuchsia-500/10 text-fuchsia-400">
+                                                            <Music size={24} />
                                                         </div>
                                                         <div className="text-center">
-                                                            <p className="font-bold text-white truncate max-w-[200px]">{audioFile.name}</p>
-                                                            <p className="text-xs text-gray-500 mt-1">{(audioFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                                                            <p className="font-semibold text-sm text-white truncate max-w-[200px]">{audioFile.name}</p>
+                                                            <p className="text-[11px] text-gray-500 mt-1 font-mono">{(audioFile.size / (1024 * 1024)).toFixed(1)} MB</p>
                                                         </div>
                                                     </label>
                                                 </>
                                             ) : (
                                                 <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full h-full justify-center">
-                                                    <div className="p-4 rounded-full bg-gray-800 text-gray-500">
-                                                        <Music size={28} />
+                                                    <div className="p-4 rounded-xl bg-white/[0.04] text-fuchsia-400 border border-white/5">
+                                                        <Music size={24} />
                                                     </div>
                                                     <div className="text-center">
-                                                        <p className="font-bold text-white">Drop Audio File</p>
-                                                        <p className="text-xs text-gray-500 mt-1">WAV, MP3, M4A</p>
+                                                        <p className="font-semibold text-sm text-white">Drop Audio File</p>
+                                                        <p className="text-[11px] text-gray-600 mt-1">WAV, MP3, M4A</p>
                                                     </div>
                                                 </label>
                                             )}
@@ -485,43 +528,41 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                     ) : (
                                         <div className="h-60 flex flex-col gap-3">
                                             <div className="flex gap-2">
-                                                <button onClick={() => setTtsVoice('male')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'male' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-black/40 border-gray-700 text-gray-400 hover:border-gray-600'}`}>Male</button>
-                                                <button onClick={() => setTtsVoice('female')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'female' ? 'bg-pink-600/20 border-pink-500 text-pink-300' : 'bg-black/40 border-gray-700 text-gray-400 hover:border-gray-600'}`}>Female</button>
+                                                <button onClick={() => setTtsVoice('male')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'male' ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : 'bg-white/[0.02] border-white/5 text-gray-400 hover:border-white/10'}`}>Male</button>
+                                                <button onClick={() => setTtsVoice('female')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'female' ? 'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-300' : 'bg-white/[0.02] border-white/5 text-gray-400 hover:border-white/10'}`}>Female</button>
                                             </div>
                                             <textarea
                                                 value={ttsScript}
                                                 onChange={(e) => setTtsScript(e.target.value)}
-                                                placeholder="Type script here..."
-                                                className="flex-1 w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white focus:border-pink-500 outline-none resize-none text-xs leading-relaxed"
+                                                placeholder="Type your script here..."
+                                                className="flex-1 w-full input-base bg-black/30 p-3 text-white text-xs leading-relaxed resize-none rounded-xl"
                                             />
-                                            <button onClick={handleGenerateTTS} disabled={isGeneratingAudio || !ttsScript || !apiKey} className="w-full py-2 rounded-lg font-bold text-xs bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white shadow-lg disabled:opacity-50">
-                                                {isGeneratingAudio ? "Synthesizing..." : "Generate Audio (AI)"}
+                                            <button onClick={handleGenerateTTS} disabled={isGeneratingAudio || !ttsScript || !apiKey} className="w-full py-2.5 rounded-xl font-bold text-xs btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+                                                {isGeneratingAudio ? "Synthesizing..." : "Generate Audio"}
                                             </button>
                                         </div>
                                     )}
 
                                     {/* Generated Audio Preview */}
                                     {(generatedAudioFile || audioFile) && (
-                                        <div className="bg-gray-800/50 rounded-xl p-3 border border-gray-700 flex items-center gap-3 animate-fade-in relative group">
-                                            <div className="p-2 bg-pink-500/20 rounded-full text-pink-400">
-                                                <Music size={16} />
+                                        <div className="glass-panel rounded-xl p-3 flex items-center gap-3 animate-fade-in relative">
+                                            <div className="p-2 bg-fuchsia-500/10 rounded-lg text-fuchsia-400">
+                                                <Music size={14} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-bold text-white truncate">{(generatedAudioFile || audioFile)?.name}</p>
-                                                <audio controls src={URL.createObjectURL(generatedAudioFile || audioFile!)} className="w-full h-6 mt-1 opacity-70 hover:opacity-100" />
+                                                <p className="text-xs font-semibold text-white truncate">{(generatedAudioFile || audioFile)?.name}</p>
+                                                <audio controls src={URL.createObjectURL(generatedAudioFile || audioFile!)} className="w-full h-6 mt-1 opacity-60 hover:opacity-100 transition-opacity" />
                                             </div>
-                                            <button onClick={handleDownloadAudio} className="p-2 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white" title="Download Audio">
-                                                <Download size={16} />
+                                            <button onClick={handleDownloadAudio} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-colors" title="Download Audio">
+                                                <Download size={14} />
                                             </button>
-
-                                            {/* Remove button for generated audio context specifically if needed, though handled in main view above */}
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="space-y-3">
                                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                        <FileText size={14} /> Subtitles
+                                        <FileText size={13} /> Captions
                                     </h3>
                                     {renderSRTSection()}
                                 </div>
@@ -529,53 +570,40 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                         )}
                     </div>
 
+                    {/* Action Bar */}
                     <div className="flex justify-center w-full">
-                        <div className="flex items-center gap-4 w-full max-w-md">
-                            {/* BACK BUTTON */}
+                        <div className="flex items-center gap-3 w-full max-w-md">
                             <button
                                 onClick={onBack}
-                                className="w-16 h-16 rounded-full border border-gray-700 bg-gray-800/50 hover:bg-gray-700 hover:border-gray-600 hover:text-white text-gray-400 flex items-center justify-center transition-all shadow-lg hover:scale-105"
-                                title="Change API Key / Back"
+                                className="w-12 h-12 rounded-xl glass-button flex items-center justify-center text-gray-400 hover:text-white"
+                                title="Back to Settings"
                             >
-                                <ArrowLeft size={24} />
+                                <ArrowLeft size={20} />
                             </button>
 
-                            {/* ENTER STUDIO BUTTON */}
                             <button
                                 onClick={handleNext}
-                                disabled={activeTab === 'video' ? (!videoFile || !currentSrt) : (!(generatedAudioFile || audioFile) || !currentSrt)}
-                                className={`flex-1 group relative overflow-hidden flex items-center justify-center space-x-3 h-16 rounded-full font-black text-lg transition-all transform shadow-2xl ${(activeTab === 'video' ? (videoFile && currentSrt) : ((generatedAudioFile || audioFile) && currentSrt))
-                                    ? 'bg-white text-black hover:scale-[1.02] hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]'
-                                    : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                                disabled={!isReady}
+                                className={`flex-1 group relative overflow-hidden flex items-center justify-center space-x-3 h-14 rounded-xl font-bold text-base transition-all ${isReady
+                                        ? 'btn-primary'
+                                        : 'bg-white/[0.04] text-gray-600 cursor-not-allowed border border-white/5'
                                     }`}
                             >
-                                <span className="relative z-10">{activeTab === 'video' ? 'Enter Studio' : 'Compose Visualizer'}</span>
-                                <ArrowRight size={24} className="relative z-10" />
+                                <span className="relative z-10">{activeTab === 'video' ? 'Continue to Studio' : 'Compose Visualizer'}</span>
+                                <ArrowRight size={20} className="relative z-10" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex justify-center gap-6 text-xs text-gray-500 mt-4 pb-4">
+                    {/* Minimal tools link */}
+                    <div className="flex justify-center gap-4 text-[11px] text-gray-600 pb-4">
                         <a href="https://transcri.io/en/subtitle-generator/srt" target="_blank" rel="noreferrer" className="hover:text-purple-400 transition-colors flex items-center gap-1">
-                            <ExternalLink size={10} /> Transcri.io
+                            <ExternalLink size={9} /> Transcri.io
                         </a>
                         <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="hover:text-purple-400 transition-colors flex items-center gap-1">
-                            <Music size={10} /> Adobe Enhance
+                            <Music size={9} /> Adobe Enhance
                         </a>
                     </div>
-                </div>
-            </div>
-
-            {/* Footer - Minimal, no person attribution */}
-            <div className="border-t border-gray-800 bg-gray-950/80 backdrop-blur-sm p-6 w-full shrink-0 z-20">
-                <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-gray-500">
-                    <span className="font-semibold text-gray-400">Reel Composer</span>
-                    <span className="hidden sm:inline w-px h-4 bg-gray-700/50" aria-hidden />
-                    <span>v1.2.5</span>
-                    <span className="hidden sm:inline w-px h-4 bg-gray-700/50" aria-hidden />
-                    <a href="https://github.com/prasannathapa/reel-composer" target="_blank" rel="noreferrer noopener" className="flex items-center gap-1.5 text-gray-500 hover:text-purple-400 transition-colors">
-                        <Github size={16} /> Source code
-                    </a>
                 </div>
             </div>
         </div>

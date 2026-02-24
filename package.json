@@ -1,5 +1,5 @@
 {
-  "name": "reel-composer",
+  "name": "lumina-studio",
   "private": true,
   "version": "1.2.5",
   "type": "module",
@@ -13,8 +13,8 @@
     "electron:build:win": "vite build && cross-env npm_config_platform=win32 npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && electron-builder build --win"
   },
   "build": {
-    "appId": "com.reelcomposer.app",
-    "productName": "Reel Composer",
+    "appId": "com.luminastudio.app",
+    "productName": "Lumina Studio",
     "mac": {
       "category": "public.app-category.video"
     },

@@ -515,9 +515,9 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
       <div
         className={`relative bg-black overflow-hidden shadow-2xl shadow-black/90 border-[6px] border-gray-800 ${fullScreenMode ? '' : 'rounded-[2.5rem] ring-8 ring-gray-900 ring-opacity-50'}`}
         style={{
-          width: fullScreenMode ? '100vh' : '360px',
-          height: fullScreenMode ? '100vh' : 'auto',
-          maxHeight: fullScreenMode ? '100vh' : 'calc(100% - 2rem)',
+          width: fullScreenMode ? '100vh' : 'auto',
+          height: fullScreenMode ? '100vh' : 'calc(100% - 80px)',
+          maxHeight: fullScreenMode ? '100vh' : '85vh',
           aspectRatio: '9/16',
           maxWidth: fullScreenMode ? '100vw' : '100%',
           cursor: isRecording ? 'none' : 'default',
