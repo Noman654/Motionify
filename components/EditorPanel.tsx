@@ -5,6 +5,10 @@ import { extractWavFromVideo } from '../utils/audioHelpers';
 import { constructPrompt, constructPromptWithAssets } from '../utils/promptTemplates';
 import { validateGeminiConnection } from '../services/geminiService';
 import { APP_CONFIG } from '../config';
+import { CaptionStylePicker } from './CaptionStylePicker';
+import { DEFAULT_STYLE_ID } from '../utils/captionStyles';
+import { BRollPanel } from './BRollPanel';
+import { BRollClip } from '../services/brollService';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
@@ -41,6 +45,12 @@ interface EditorPanelProps {
   duration: number;
   currentTime: number;
   onSeek: (time: number) => void;
+  // Caption Style Props
+  captionStyleId?: string;
+  onCaptionStyleChange?: (styleId: string) => void;
+  // B-Roll Props
+  brollClips?: BRollClip[];
+  onBRollClipsChange?: (clips: BRollClip[]) => void;
 }
 
 export const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -69,9 +79,13 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   onSrtDataUpdate,
   duration,
   currentTime,
-  onSeek
+  onSeek,
+  captionStyleId = DEFAULT_STYLE_ID,
+  onCaptionStyleChange,
+  brollClips = [],
+  onBRollClipsChange
 }) => {
-  const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio' | 'assets' | 'subtitles'>('config');
+  const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio' | 'assets' | 'subtitles' | 'broll'>('config');
   const [localConfig, setLocalConfig] = useState(JSON.stringify(content.layoutConfig, null, 2));
   const [localHtml, setLocalHtml] = useState(content.html);
   const [offlineHtml, setOfflineHtml] = useState<string | null>(null); // New state for inlined code
@@ -365,7 +379,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('assets')}
-            className={`flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${activeTab === 'assets' || activeTab === 'subtitles' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${activeTab === 'assets' || activeTab === 'subtitles' || activeTab === 'broll' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
           >
             <ImageIcon size={13} /> <span>Media</span>
           </button>
@@ -733,6 +747,16 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {srtData && <span className="text-[10px] text-gray-500 font-mono">{srtData.length} items</span>}
             </div>
 
+            {/* Caption Style Picker */}
+            {onCaptionStyleChange && (
+              <div className="mb-4">
+                <CaptionStylePicker
+                  selectedStyleId={captionStyleId}
+                  onStyleChange={onCaptionStyleChange}
+                />
+              </div>
+            )}
+
             {!srtData || srtData.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <Type size={32} className="mx-auto opacity-20 mb-3" />
@@ -861,6 +885,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               >
                 📝 Subtitles
               </button>
+              <button
+                onClick={() => setActiveTab('broll')}
+                className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'broll' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                🎬 B-Roll
+              </button>
             </div>
 
             {/* Upload Area */}
@@ -939,6 +969,41 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               <AlertTriangle size={12} className="text-yellow-500 shrink-0" />
               <p>Assets are stored in memory. Reloading the page will clear them.</p>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'broll' && (
+          <div className="flex flex-col h-full">
+            {/* Sub-tabs for Media */}
+            <div className="flex bg-white/[0.02] p-0.5 rounded-lg border border-white/[0.04] w-fit mb-3">
+              <button
+                onClick={() => setActiveTab('assets')}
+                className="px-3 py-1.5 rounded-md text-[10px] font-bold text-gray-500 hover:text-gray-300 transition-all"
+              >
+                🖼 Assets
+              </button>
+              <button
+                onClick={() => setActiveTab('subtitles')}
+                className="px-3 py-1.5 rounded-md text-[10px] font-bold text-gray-500 hover:text-gray-300 transition-all"
+              >
+                📝 Subtitles
+              </button>
+              <button
+                onClick={() => setActiveTab('broll')}
+                className="px-3 py-1.5 rounded-md text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20 transition-all"
+              >
+                🎬 B-Roll
+              </button>
+            </div>
+            {onBRollClipsChange && (
+              <BRollPanel
+                srtText={srtData?.map(s => `${s.id}\n${s.startTime} --> ${s.endTime}\n${s.text}`).join('\n\n') || ''}
+                topicContext={topicContext}
+                apiKey={apiKey}
+                brollClips={brollClips}
+                onBRollClipsChange={onBRollClipsChange}
+              />
+            )}
           </div>
         )}
       </div>

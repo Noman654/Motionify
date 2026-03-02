@@ -17,6 +17,8 @@ import { APP_CONFIG } from './config';
 import { constructPrompt, EXAMPLE_SRT, EXAMPLE_TOPIC, EXAMPLE_HTML, EXAMPLE_JSON } from './utils/promptTemplates';
 import { saveProjectWithVideo, loadProjectWithVideo, SavedProject } from './utils/projectStorageWithVideo';
 import { AnimationTemplate } from './utils/templates';
+import { DEFAULT_STYLE_ID } from './utils/captionStyles';
+import { BRollClip } from './services/brollService';
 
 const App: React.FC = () => {
     const [appState, setAppState] = useState<AppState>(() => {
@@ -79,6 +81,8 @@ const App: React.FC = () => {
     // Save Project Dialog State
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveProjectName, setSaveProjectName] = useState('');
+    const [captionStyleId, setCaptionStyleId] = useState(DEFAULT_STYLE_ID);
+    const [brollClips, setBRollClips] = useState<BRollClip[]>([]);
 
     const handleSubtitleClick = (item: SRTItem) => {
         setEditingSubtitle(item);
@@ -633,6 +637,8 @@ const App: React.FC = () => {
                                                 onTimeUpdate={setCurrentTime}
                                                 onDurationLoad={setVideoDuration}
                                                 externalSeekTime={externalSeekTime}
+                                                captionStyleId={captionStyleId}
+                                                brollClips={brollClips}
                                             />
                                         </div>
 
@@ -666,6 +672,10 @@ const App: React.FC = () => {
                                                     duration={videoDuration}
                                                     currentTime={currentTime}
                                                     onSeek={(t) => setExternalSeekTime(t)}
+                                                    captionStyleId={captionStyleId}
+                                                    onCaptionStyleChange={setCaptionStyleId}
+                                                    brollClips={brollClips}
+                                                    onBRollClipsChange={setBRollClips}
                                                 />
                                             </div>
                                         )}

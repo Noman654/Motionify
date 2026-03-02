@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { LayoutConfigStep, SRTItem, MediaAsset } from '../types';
 import { Play, Pause, RefreshCw, Maximize, Minimize, Video, StopCircle, X, AlertTriangle, Monitor, Download } from 'lucide-react';
 import { ExportModal } from './ExportModal';
+import { getPreviewContainerStyle, getPreviewWordStyle, DEFAULT_STYLE_ID } from '../utils/captionStyles';
+import { BRollClip } from '../services/brollService';
 
 interface ReelPlayerProps {
   videoUrl: string;
@@ -18,6 +20,8 @@ interface ReelPlayerProps {
   onTimeUpdate?: (time: number) => void;
   onDurationLoad?: (duration: number) => void;
   externalSeekTime?: number | null;
+  captionStyleId?: string;
+  brollClips?: BRollClip[];
 }
 
 export const ReelPlayer: React.FC<ReelPlayerProps> = ({
@@ -34,7 +38,9 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   assets = [],
   onTimeUpdate,
   onDurationLoad,
-  externalSeekTime
+  externalSeekTime,
+  captionStyleId = DEFAULT_STYLE_ID,
+  brollClips = []
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -77,6 +83,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   const currentCaption = useMemo(() => {
     return srtData.find(item => currentTime >= item.startTime && currentTime <= item.endTime);
   }, [currentTime, srtData]);
+
+  const activeBRoll = brollClips.find(clip => currentTime >= clip.startTime && currentTime < clip.endTime) || null;
 
   // --- Styles calculation ---
   const getLayoutStyles = () => {
@@ -147,7 +155,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   const captionStyle = getCaptionStyle();
   const isFullHtml = currentLayout.layoutMode === 'full-html';
 
-  // --- Word-by-Word Animation Logic (With Chunking) ---
+  // --- Word-by-Word Animation Logic (With Chunking + Style Engine) ---
   const renderAnimatedCaption = () => {
     if (!currentCaption) return null;
 
@@ -157,9 +165,9 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     const allWords = currentCaption.text.split(' ');
 
     // Calculate progress through the current segment (0 to 1)
-    const duration = currentCaption.endTime - currentCaption.startTime;
+    const segDuration = currentCaption.endTime - currentCaption.startTime;
     const elapsed = currentTime - currentCaption.startTime;
-    const progress = Math.max(0, Math.min(1, elapsed / duration));
+    const progress = Math.max(0, Math.min(1, elapsed / segDuration));
 
     // Determine which word is currently being spoken (Global Index)
     const globalActiveIndex = Math.floor(progress * allWords.length);
@@ -172,33 +180,24 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     const endWordIndex = startWordIndex + WORDS_PER_VIEW;
     const visibleWords = allWords.slice(startWordIndex, endWordIndex);
 
+    const containerStyle = getPreviewContainerStyle(captionStyleId, isFullHtml);
+
     return (
       <div
-        className={`flex flex-wrap justify-center items-center gap-x-1.5 gap-y-1 px-4 py-2 rounded-2xl transition-all duration-300 ${isFullHtml ? 'bg-black/80 backdrop-blur-md border border-white/10 shadow-2xl' : ''}`}
-        style={{ minHeight: '60px' }} // STABILITY: Prevent layout shifts
+        className={containerStyle.className}
+        style={containerStyle.style}
       >
         {visibleWords.map((word, index) => {
-          // Calculate the true index of this word in the original full sentence
           const trueIndex = startWordIndex + index;
-
-          const isActive = trueIndex === globalActiveIndex;
-          const isPast = trueIndex < globalActiveIndex;
+          const wordStyle = getPreviewWordStyle(captionStyleId, trueIndex, globalActiveIndex, allWords.length);
 
           return (
             <span
               key={`${currentCaption.id}-${trueIndex}`}
-              className={`
-                transition-all duration-150 inline-block text-2xl md:text-2xl font-black tracking-wide leading-tight
-                ${isActive ? 'text-yellow-400 scale-110' : ''}
-                ${isPast ? 'text-white' : 'text-white/40'}
-              `}
-              style={{
-                textShadow: isActive
-                  ? '0 0 30px rgba(250, 204, 21, 0.6), 2px 2px 0px rgba(0,0,0,1)'
-                  : '2px 2px 0px rgba(0,0,0,0.8)'
-              }}
+              className={wordStyle.className}
+              style={wordStyle.style}
             >
-              {word}
+              {wordStyle.prefix}{word}{wordStyle.suffix}
             </span>
           );
         })}
@@ -564,6 +563,36 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
           />
         </div>
 
+        {/* B-Roll Overlay */}
+        {activeBRoll && (
+          <div
+            className="absolute inset-0 z-30 transition-opacity duration-500"
+            style={{ opacity: 0.95 }}
+          >
+            {activeBRoll.type === 'video' ? (
+              <video
+                key={activeBRoll.id}
+                src={activeBRoll.sourceUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img
+                src={activeBRoll.sourceUrl}
+                alt="B-Roll"
+                className="w-full h-full object-cover"
+              />
+            )}
+            {/* Credit badge */}
+            <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-[8px] text-white/50 px-2 py-0.5 rounded-full z-40">
+              📷 {activeBRoll.credit}
+            </div>
+          </div>
+        )}
+
         {currentCaption && (
           <div style={captionStyle}>
             <div className="relative group max-w-[95%]">
@@ -642,6 +671,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
         duration={duration}
         srtData={srtData}
         layoutConfig={layoutConfig}
+        captionStyleId={captionStyleId}
       />
 
       {

@@ -59,4 +59,5 @@ export interface SavedProject {
   hasVideo?: boolean;
   duration?: number;
   tags?: string[];
+  captionStyleId?: string;
 }

@@ -127,20 +127,29 @@ ipcMain.handle('capture-overlay-frame', async (event, { time }) => {
             throw new Error('Overlay window not initialized');
         }
 
-        // Sync time using postMessage (matches the GSAP listener pattern in generated HTML)
+        // Sync time and wait for the browser to paint the new animation state.
+        // We use requestAnimationFrame inside executeJavaScript to ensure GSAP/CSS
+        // animations have fully settled before we capture the frame.
         await overlayWindow.webContents.executeJavaScript(`
-            window.postMessage({ type: 'timeupdate', time: ${time} }, '*');
+            new Promise(resolve => {
+                window.postMessage({ type: 'timeupdate', time: ${time} }, '*');
+                // Wait for TWO animation frames: one for GSAP to process the
+                // timeupdate, and one for the browser to paint the result.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        resolve();
+                    });
+                });
+            });
         `);
-
-        // Small delay to allow GSAP animations to update
-        await new Promise(resolve => setTimeout(resolve, 16));
 
         // Capture the full page via Chromium's native renderer
         const image = await overlayWindow.webContents.capturePage();
 
-        // Return as PNG buffer for maximum quality (lossless)
-        const pngBuffer = image.toPNG();
-        return { success: true, buffer: pngBuffer };
+        // Return as JPEG buffer (quality 90) — much faster encoding than PNG
+        // and ~3-5x smaller buffer for faster IPC transfer
+        const jpegBuffer = image.toJPEG(90);
+        return { success: true, buffer: jpegBuffer };
     } catch (err) {
         console.error('Failed to capture overlay frame:', err);
         return { success: false, error: err.message };

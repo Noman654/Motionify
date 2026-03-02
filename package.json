@@ -2,6 +2,8 @@
   "name": "lumina-studio",
   "private": true,
   "version": "1.2.5",
+  "description": "Professional reel and short-form video composer powered by FFmpeg",
+  "author": "Lumina Studio",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -10,7 +12,7 @@
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:3000 && ELECTRON_START_URL=http://localhost:3000 electron .\"",
     "electron:pack": "vite build && cross-env npm_config_platform=darwin npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && cross-env npm_config_platform=darwin npm_config_arch=arm64 node node_modules/ffmpeg-static/install.js && electron-builder build --mac",
-    "electron:build:win": "vite build && cross-env npm_config_platform=win32 npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && electron-builder build --win"
+    "electron:build:win": "vite build && cross-env npm_config_platform=win32 npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && electron-builder build --win --x64"
   },
   "build": {
     "appId": "com.luminastudio.app",
@@ -19,7 +21,14 @@
       "category": "public.app-category.video"
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,

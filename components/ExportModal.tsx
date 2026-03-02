@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertCircle, Loader2, Zap } from 'lucide-react';
 import { LayoutConfigStep, SRTItem } from '../types';
+import { renderExportCaption, DEFAULT_STYLE_ID } from '../utils/captionStyles';
 
 interface ExportModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface ExportModalProps {
     duration?: number;
     srtData?: SRTItem[];
     layoutConfig?: LayoutConfigStep[];
+    captionStyleId?: string;
 }
 
 
@@ -20,7 +22,7 @@ interface ExportModalProps {
 
 
 export const ExportModal: React.FC<ExportModalProps> = ({
-    isOpen, onClose, videoFile, htmlContent, bgMusicFile, bgMusicVolume = 0.2, duration = 10, srtData, layoutConfig = []
+    isOpen, onClose, videoFile, htmlContent, bgMusicFile, bgMusicVolume = 0.2, duration = 10, srtData, layoutConfig = [], captionStyleId = DEFAULT_STYLE_ID
 }) => {
 
     const [status, setStatus] = useState<'idle' | 'rendering' | 'merging' | 'done' | 'error'>('idle');
@@ -137,9 +139,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             for (let i = 0; i < totalFrames; i++) {
                 const time = clipStart + i / FPS;
 
-                // 1. Sync subtitle state - REMOVED (No longer needed for React render)
-
-                // 2. Determine current layout
+                // 1. Determine current layout
                 let currentLayout = layoutConfig.find(step => time >= step.startTime && time < step.endTime);
                 if (!currentLayout && layoutConfig.length > 0) {
                     if (time >= layoutConfig[layoutConfig.length - 1].endTime) {
@@ -153,7 +153,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 const { layoutMode, splitRatio = 0.5 } = currentLayout;
                 const isFullHtml = layoutMode === 'full-html';
 
-                // 3. Calculate dimensions
+                // 2. Calculate dimensions
                 let htmlH = HEIGHT * 0.5;
                 let videoH = HEIGHT * 0.5;
                 let videoY = HEIGHT * 0.5;
@@ -168,34 +168,57 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     videoY = htmlH;
                 }
 
-                // 4. Resize overlay window if HTML height changed
+                // 3. Resize overlay window if HTML height changed
                 const roundedHtmlH = Math.round(htmlH);
                 if (roundedHtmlH !== lastOverlayHeight && roundedHtmlH > 0) {
                     await electron.resizeOverlayWindow({ width: WIDTH, height: roundedHtmlH });
                     lastOverlayHeight = roundedHtmlH;
                 }
 
-                // 5. Seek video (optimized: no fixed delay; wait for seeked event)
-                video.currentTime = time;
-                if (video.seeking) {
-                    await new Promise<void>(r => {
-                        const h = () => { video.removeEventListener('seeked', h); r(); };
-                        video.addEventListener('seeked', h);
+                // 4. PARALLEL: Seek video + Capture overlay at the same time
+                //    These are independent operations — video seek uses the HTML
+                //    video decoder, overlay capture uses a separate BrowserWindow.
+                //    Running them in parallel saves ~30-100ms per frame.
+                const seekPromise = new Promise<void>(resolve => {
+                    video.currentTime = time;
+                    const onSeeked = () => {
+                        video.removeEventListener('seeked', onSeeked);
+                        resolve();
+                    };
+                    video.addEventListener('seeked', onSeeked);
+                    queueMicrotask(() => {
+                        if (!video.seeking) {
+                            video.removeEventListener('seeked', onSeeked);
+                            resolve();
+                        }
                     });
-                }
+                });
 
-                // 6. Clear canvas
+                // Start overlay capture + bitmap decode in parallel with seek
+                let overlayBitmap: ImageBitmap | null = null;
+                const overlayPromise = (htmlH > 0)
+                    ? electron.captureOverlayFrame({ time }).then(async (result) => {
+                        if (result.success && result.buffer) {
+                            const blob = new Blob([result.buffer], { type: 'image/jpeg' });
+                            overlayBitmap = await createImageBitmap(blob);
+                        }
+                    }).catch((e: any) => console.error("Overlay capture error:", e))
+                    : Promise.resolve();
+
+                // Wait for BOTH to complete
+                await Promise.all([seekPromise, overlayPromise]);
+
+                // 5. Clear canvas
                 ctx.clearRect(0, 0, WIDTH, HEIGHT);
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-                // 7. DRAW VIDEO (if visible)
+                // 6. DRAW VIDEO (if visible)
                 if (videoH > 0) {
                     const vidRatio = video.videoWidth / video.videoHeight;
                     const targetRatio = WIDTH / videoH;
                     let drawW = WIDTH, drawH = videoH, dx = 0, dy = videoY;
 
-                    // Strict 9:16 Cover (crop to fill)
                     if (vidRatio > targetRatio) {
                         drawH = videoH;
                         drawW = videoH * vidRatio;
@@ -214,23 +237,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     ctx.restore();
                 }
 
-                // 8. DRAW HTML OVERLAY (via offscreen BrowserWindow capturePage)
-                if (htmlH > 0) {
-                    try {
-                        const captureResult = await electron.captureOverlayFrame({ time });
-                        if (captureResult.success && captureResult.buffer) {
-                            // Convert the PNG buffer to an ImageBitmap for canvas drawing
-                            const blob = new Blob([captureResult.buffer], { type: 'image/png' });
-                            const bitmap = await createImageBitmap(blob);
-                            ctx.drawImage(bitmap, 0, 0, WIDTH, roundedHtmlH);
-                            bitmap.close();
-                        }
-                    } catch (e) {
-                        console.error("Overlay capture error:", e);
-                    }
+                // 7. DRAW HTML OVERLAY (already decoded to bitmap during parallel step)
+                if (overlayBitmap) {
+                    ctx.drawImage(overlayBitmap, 0, 0, WIDTH, roundedHtmlH);
+                    overlayBitmap.close();
                 }
 
-                // 9. DRAW SUBTITLES (direct Canvas 2D text rendering — no DOM capture)
+                // 8. DRAW SUBTITLES (using caption style engine)
                 if (srtData?.length) {
                     const currentSub = srtData.find(item => time >= item.startTime && time <= item.endTime);
                     if (currentSub) {
@@ -251,61 +264,30 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                             subY = HEIGHT * 0.8;
                         }
 
-                        // Draw subtitle background
-                        const fontSize = 48;
-                        ctx.font = `900 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-
-                        // Measure total width for background
-                        const totalText = visibleWords.join('  ');
-                        const metrics = ctx.measureText(totalText);
-                        const bgPadX = 30, bgPadY = 20;
-                        const bgW = metrics.width + bgPadX * 2;
-                        const bgH = fontSize * 1.5 + bgPadY * 2;
-                        const bgX = (WIDTH - bgW) / 2;
-                        const bgY = subY - bgH / 2;
-
-                        if (isFullHtml) {
-                            ctx.save();
-                            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                            ctx.beginPath();
-                            ctx.roundRect(bgX, bgY, bgW, bgH, 24);
-                            ctx.fill();
-                            ctx.restore();
-                        }
-
-                        // Draw each word
-                        let drawX = WIDTH / 2 - metrics.width / 2;
-                        for (let wi = 0; wi < visibleWords.length; wi++) {
-                            const trueIdx = startWordIdx + wi;
-                            const isActive = trueIdx === globalActiveIdx;
-                            const isPast = trueIdx < globalActiveIdx;
-
-                            ctx.font = `900 ${isActive ? fontSize * 1.1 : fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-
-                            // Shadow
-                            ctx.save();
-                            ctx.fillStyle = 'rgba(0,0,0,0.8)';
-                            ctx.fillText(visibleWords[wi], drawX + 3 + ctx.measureText(visibleWords[wi]).width / 2, subY + 3);
-                            ctx.restore();
-
-                            // Main text
-                            ctx.fillStyle = isActive ? '#facc15' : (isPast ? '#ffffff' : 'rgba(255,255,255,0.4)');
-                            ctx.fillText(visibleWords[wi], drawX + ctx.measureText(visibleWords[wi]).width / 2, subY);
-
-                            drawX += ctx.measureText(visibleWords[wi]).width + ctx.measureText('  ').width;
-                        }
+                        renderExportCaption({
+                            ctx,
+                            styleId: captionStyleId,
+                            words: visibleWords,
+                            activeIndex: globalActiveIdx,
+                            startWordIndex: startWordIdx,
+                            canvasWidth: WIDTH,
+                            canvasHeight: HEIGHT,
+                            subY,
+                            isFullHtml,
+                        });
                     }
                 }
 
-                // 10. Send frame to FFmpeg
-                const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.90));
+                // 9. Send frame to FFmpeg (quality 0.82 is sufficient — FFmpeg re-encodes with libx264)
+                const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.82));
                 if (blob) await electron.writeFrame(await blob.arrayBuffer());
 
-                setProgress(Math.round((i / totalFrames) * 100));
-                setLogText(`Rendering: ${i + 1}/${totalFrames}`);
-                if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+                // Throttle UI updates to every 15 frames for max render speed
+                if (i % 15 === 0 || i === totalFrames - 1) {
+                    setProgress(Math.round((i / totalFrames) * 100));
+                    setLogText(`Rendering: ${i + 1}/${totalFrames}`);
+                }
+                if (i % 60 === 0) await new Promise(r => setTimeout(r, 0));
             }
 
             // === FINALIZE ===

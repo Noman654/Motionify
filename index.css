@@ -305,6 +305,17 @@ h6 {
   animation: breathe 3s ease-in-out infinite;
 }
 
+/* Caption Glow Pulse — text shadow animation for glow caption style */
+@keyframes glowPulse {
+  0% {
+    text-shadow: 0 0 10px #00ff9d, 0 0 20px #00ff9d;
+  }
+
+  100% {
+    text-shadow: 0 0 20px #00ff9d, 0 0 40px #00ff9d, 0 0 60px #00ff9d;
+  }
+}
+
 /* Cross-fade transition for state changes */
 .state-enter {
   animation: fadeIn 0.4s var(--ease-out-expo) forwards;
