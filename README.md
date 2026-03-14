@@ -1,111 +1,180 @@
-# Reel Composer
+# Lumina Studio (Reel Composer)
 
 [![reel-composer-banner.png](https://i.postimg.cc/NMjTQJ7D/reel-composer-banner.png)](https://postimg.cc/XZtX8gPB)
 
-**Reel Composer** is a "Director's Studio" that transforms raw talking-head footage into high-retention "Edutainment" content (Instagram Reels / TikToks / YouTube Shorts). 
+**Lumina Studio** is a professional desktop app that transforms raw talking-head footage into high-retention **Edutainment** content (Instagram Reels / TikToks / YouTube Shorts).
 
-It leverages **Google Gemini 2.0/2.5** to intelligently analyze your transcript and generate synchronized, broadcast-quality HTML5/GSAP animations that overlay your video.
+It combines **Google Gemini AI**, **FFmpeg**, and **GSAP animations** to auto-generate broadcast-quality motion graphics, captions, and B-Roll overlays — all from your transcript.
 
----
-
-## 🧠 The Philosophy: Quantity > Perfectionism
-
-> *"In the world of algorithms, Volume is Leverage."*
-
-To grow on social media, you must understand the **Statistics of Virality**.
-
-### 1. The Probabilistic Reality
-Going viral is a probabilistic event. It is a lottery where every video you post is a ticket. 
-*   **Low Volume:** Posting 1 "Perfect" video a month = 12 chances/year.
-*   **High Volume:** Posting 1 "Good Enough" video a day = 365 chances/year.
-
-### 2. The Credibility Trap
-Usually, increasing volume means sacrificing quality. However, low-quality content hurts your authority (Credibility). 
-*   **The Dilemma:** High-end motion graphics (Edutainment) build trust but take days to edit in After Effects.
-*   **The Solution:** **Reel Composer** automates the "Credibility Layer."
-
-### 3. Automating Authority
-This tool bridges the gap. It allows you to produce **High-Retention, Visually Intellectual Content** at the **Volume** required for statistical growth.
-
-*   **Don't compromise on Credibility.**
-*   **Don't compromise on Volume.**
-*   **Let AI handle the pixels.**
+> **Built with:** Electron + React 19 + TypeScript + Tailwind CSS + FFmpeg + GSAP + Gemini AI
 
 ---
 
-## 🎬 The "Pro" Workflow
+## ✨ Key Features
 
-To achieve the highest quality output, follow this content creation pipeline:
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **AI Scene Generation** | ✅ Ship | Gemini analyzes transcript → generates HTML5/GSAP animation overlays |
+| **Pro Animated Captions** | ✅ Ship | 10 viral caption styles (Karaoke, Pop-In, Boxed, Glow, Netflix, etc.) |
+| **AI Smart B-Roll** | ✅ Ship | Gemini suggests keywords → Pexels API → one-click stock footage insert |
+| **Native FFmpeg Export** | ✅ Ship | Frame-by-frame Canvas 2D → FFmpeg pipeline, lossless quality |
+| **Dynamic Split Layouts** | ✅ Ship | AI-driven layout changes (full-video, full-html, split with custom ratio) |
+| **Template Gallery** | ✅ Ship | Pre-built GSAP animation templates (Tech, Business, Creative, etc.) |
+| **Auto SRT Generation** | ✅ Ship | Gemini transcribes audio/video → generates SRT subtitles |
+| **Background Music** | ✅ Ship | Upload BG music with volume control, auto-synced to video timeline |
+| **Project Library** | ✅ Ship | Save/load projects with IndexedDB persistence |
+| **Visual Code Editor** | ✅ Ship | Prism.js syntax-highlighted HTML editor with search & format |
+| **Visual Timeline** | ✅ Ship | Timeline with subtitle, layout, and seek controls |
+| **Asset Manager** | ✅ Ship | Upload images/videos referenced in HTML animations |
+| **Offline HTML** | ✅ Ship | Inline all CDN resources for offline export (Electron-only) |
+| **Audio Extraction** | ✅ Ship | Extract WAV from video for external transcription services |
+| **TTS Generation** | ✅ Ship | Text-to-speech via Gemini for audio-only workflows |
+| **Face Tracking Auto-Zoom** | 🔜 Next | MediaPipe face detection → cinematic Ken Burns zoom/pan |
 
-### 1. Record & Clean
-Record your video. If you are recording in a noisy environment, pass your audio through **[Adobe Podcast Enhance](https://podcast.adobe.com/enhance)** to get studio-quality sound.
+---
 
-### 2. Transcribe (.SRT)
-Generative AI needs context. Convert your video/audio into an SRT subtitle file.
-*   *Recommended Tool:* **[Transcri.io](https://transcri.io/en/subtitle-generator/srt)** or standard video editing software.
+## 🎨 10 Caption Styles
 
-### 3. Compose (This App)
-1.  **Upload:** Drop your Video and SRT file into Reel Composer.
-2.  **Director's Brief:** (Optional) Describe the visual context (e.g., "I want a cyberpunk grid appearing when I say 'Matrix'").
-3.  **Generate:** The app uses Gemini to generate a custom HTML animation layer and a dynamic split-screen layout JSON.
+Pick from the **Media → Subtitles** tab:
 
-### 4. Refine with LLMs
-The built-in editor allows you to tweak the code.
-*   *Workflow Tip:* If the animation isn't quite right, copy the generated code, paste it into **ChatGPT/Claude/Gemini**, and say: *"Make the particles faster"* or *"Change the color to green"*. Paste the updated code back into the Editor Panel.
+| Style | Effect |
+|-------|--------|
+| 🎤 Karaoke | Yellow highlight + glow on active word |
+| 💥 Pop-In | Words scale up as they appear |
+| 🟨 Boxed Highlight | Active word gets yellow background |
+| ⌨️ Typewriter | Words appear sequentially with blinking cursor |
+| 🏀 Bounce Drop | Words drop in from above with spring physics |
+| ✨ Glow Pulse | Neon green pulsating glow effect |
+| 🔥 Emoji React | Random emoji pops beside each active word |
+| 🌈 Split Color | Active word gets red→orange gradient |
+| 〰️ Underline Sweep | Purple underline sweeps under the word |
+| 🎬 Netflix | Clean, bold fade — one chunk at a time |
 
-### 5. Export
-Record the final composition directly from the browser to get a polished `.webm` or `.mp4` file ready for social media.
-*   *Recommended Tool:* **[OBS Studio](https://obsproject.com/)** or standard screen recording software to capture the playback.
+All styles render pixel-perfect in both **live preview** and **FFmpeg export**.
+
+---
+
+## 🎬 AI Smart B-Roll
+
+Open **Media → 🎬 B-Roll** tab:
+
+1. **AI Suggest** — Gemini reads your transcript and suggests 4–8 stock footage keywords with time ranges
+2. **Pexels Search** — Search millions of free stock videos/photos
+3. **One-Click Insert** — Click "Insert" to add B-Roll at the specified timestamp
+4. **Live Preview** — B-Roll renders as fullscreen overlay with photographer credit
+
+Requires a free [Pexels API key](https://www.pexels.com/api/new/). Set via the app or in `.env`:
+```
+VITE_PEXELS_API_KEY=your_key_here
+```
 
 ---
 
 ## 🚀 Getting Started
 
-This is a pure frontend application. No backend server is required.
-
 ### Prerequisites
-*   Node.js (v18+)
+- Node.js v18+
+- macOS or Windows
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/prasannathapa/reel-composer.git
-
-# Install dependencies
+git clone https://github.com/your-username/reel-composer-ffmpeg.git
+cd reel-composer-ffmpeg
 npm install
-
-# Run the development server
-npm start
 ```
 
-### API Key Configuration
-**Note:** This repository does not include a live API key. You must provide your own **Google Gemini API Key**.
+### Run in Development
 
-You can configure this in two ways:
+```bash
+# Web-only (Vite dev server)
+npm run dev
 
-1.  **Config File (Recommended for Dev):**
-    Open `config.ts` and paste your key into `DEFAULT_API_KEY`.
-    ```typescript
-    export const APP_CONFIG = {
-      DEFAULT_API_KEY: "PASTE_YOUR_KEY_HERE",
-      // ...
-    };
-    ```
+# Desktop app (Electron + Vite)
+npm run electron:dev
+```
 
-2.  **UI Settings (Portable):**
-    Enter your key directly in the application's **Settings Panel** (Internal Generator section). The key is stored securely in your browser's `localStorage`.
+### Build for Production
+
+```bash
+# macOS
+npm run electron:pack
+
+# Windows
+npm run electron:build:win
+```
+
+### API Keys
+
+| Key | Where | Purpose |
+|-----|-------|---------|
+| **Gemini API Key** | Settings panel or `config.ts` | AI scene generation, SRT, B-Roll suggestions |
+| **Pexels API Key** | B-Roll panel or `.env` | Stock video/photo search |
+
+Get your free [Gemini API Key](https://aistudio.google.com/app/apikey) and [Pexels API Key](https://www.pexels.com/api/new/).
+
+---
+
+## 🏗️ Architecture
+
+```
+├── App.tsx                    # Root component, state orchestration
+├── components/
+│   ├── ReelPlayer.tsx         # Live preview (video + HTML overlay + captions + B-Roll)
+│   ├── ExportModal.tsx        # FFmpeg export (Canvas 2D frame-by-frame)
+│   ├── EditorPanel.tsx        # Right sidebar (Design, Code, Media tabs)
+│   ├── CaptionStylePicker.tsx # 10 caption style selector
+│   ├── BRollPanel.tsx         # AI B-Roll suggestions + Pexels search
+│   ├── FileUpload.tsx         # Video/SRT upload + auto-SRT + TTS
+│   ├── VisualTimeline.tsx     # Bottom timeline with seek/subtitle display
+│   ├── TemplateGallery.tsx    # Pre-built animation templates
+│   ├── ProjectLibrary.tsx     # Save/load projects
+│   └── WelcomeScreen.tsx      # Onboarding + API key setup
+├── services/
+│   ├── geminiService.ts       # Gemini AI (SRT, scene gen, TTS)
+│   ├── pexelsService.ts       # Pexels stock footage API
+│   └── brollService.ts        # Gemini B-Roll keyword analysis
+├── utils/
+│   ├── captionStyles.ts       # 10 caption styles (preview + export renderers)
+│   ├── templates.ts           # GSAP animation templates
+│   ├── srtParser.ts           # SRT subtitle parser
+│   ├── promptTemplates.ts     # Gemini prompt engineering
+│   ├── audioHelpers.ts        # WAV extraction
+│   └── projectStorage*.ts     # IndexedDB persistence
+├── electron/
+│   ├── main.cjs               # FFmpeg pipeline + overlay capture
+│   ├── preload.cjs            # IPC bridge
+│   └── htmlInliner.cjs        # Offline HTML inlining
+└── types.ts                   # TypeScript interfaces
+```
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **Framework:** React 19 + TypeScript
-*   **Styling:** Tailwind CSS
-*   **AI Integration:** Google GenAI SDK (Gemini 2.5 Flash / Pro)
-*   **Animation Engine:** GSAP (GreenSock Animation Platform)
-*   **Icons:** Lucide React
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19 + TypeScript |
+| **Styling** | Tailwind CSS v4 |
+| **Desktop** | Electron 40 |
+| **Video** | FFmpeg (fluent-ffmpeg + ffmpeg-static) |
+| **Animation** | GSAP (GreenSock) |
+| **AI** | Google GenAI SDK (Gemini 2.5 Flash / Pro) |
+| **Stock Media** | Pexels API |
+| **Code Editor** | react-simple-code-editor + Prism.js |
+| **Icons** | Lucide React |
+| **Build** | Vite 6 + electron-builder |
 
 ---
 
-*Built for creators.*
+## 📋 The "Pro" Workflow
+
+1. **Record & Clean** — Record your video. Enhance audio via [Adobe Podcast](https://podcast.adobe.com/enhance)
+2. **Transcribe** — Upload SRT or let Gemini auto-generate subtitles
+3. **Compose** — Drop video + SRT → write a "Director's Brief" → Generate
+4. **Style** — Pick a caption style, add B-Roll, tweak animations
+5. **Export** — Native FFmpeg export at 1080×1920 @ 30fps
+
+---
+
+*Built for creators who refuse to choose between quality and quantity.*

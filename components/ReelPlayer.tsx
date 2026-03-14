@@ -1,9 +1,12 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { LayoutConfigStep, SRTItem, MediaAsset } from '../types';
-import { Play, Pause, RefreshCw, Maximize, Minimize, Video, StopCircle, X, AlertTriangle, Monitor, Download } from 'lucide-react';
+import { Play, Pause, RefreshCw, Maximize, Minimize, Video, StopCircle, X, AlertTriangle, Monitor, Download, Zap } from 'lucide-react';
 import { ExportModal } from './ExportModal';
 import { getPreviewContainerStyle, getPreviewWordStyle, DEFAULT_STYLE_ID } from '../utils/captionStyles';
 import { BRollClip } from '../services/brollService';
+import { ActiveHook } from '../services/hookService';
+import { HookLabPanel } from './HookLabPanel';
+import { HookOverlay } from './HookOverlay';
 
 interface ReelPlayerProps {
   videoUrl: string;
@@ -22,6 +25,12 @@ interface ReelPlayerProps {
   externalSeekTime?: number | null;
   captionStyleId?: string;
   brollClips?: BRollClip[];
+  // Hook Lab props
+  srtTextRaw?: string;
+  topicContext?: string;
+  apiKey?: string;
+  activeHook?: ActiveHook | null;
+  onActiveHookChange?: (hook: ActiveHook | null) => void;
 }
 
 export const ReelPlayer: React.FC<ReelPlayerProps> = ({
@@ -40,17 +49,25 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   onDurationLoad,
   externalSeekTime,
   captionStyleId = DEFAULT_STYLE_ID,
-  brollClips = []
+  brollClips = [],
+  srtTextRaw = '',
+  topicContext = '',
+  apiKey = '',
+  activeHook = null,
+  onActiveHookChange
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [showExportInfo, setShowExportInfo] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showHookLab, setShowHookLab] = useState(false);
+  const [previewHook, setPreviewHook] = useState<ActiveHook | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // Key to force re-render iframe on restart
@@ -512,6 +529,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     <div className={`flex flex-col items-center justify-center ${fullScreenMode ? 'fixed inset-0 z-50 bg-black' : 'h-full w-full p-4'}`}>
 
       <div
+        ref={playerContainerRef}
         className={`relative bg-black overflow-hidden shadow-2xl shadow-black/90 border-[6px] border-gray-800 ${fullScreenMode ? '' : 'rounded-[2.5rem] ring-8 ring-gray-900 ring-opacity-50'}`}
         style={{
           width: fullScreenMode ? '100vh' : 'auto',
@@ -593,7 +611,30 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
           </div>
         )}
 
-        {currentCaption && (
+        {/* Hook Overlay */}
+        {(() => {
+          const hook = previewHook || activeHook;
+          const hookDur = hook?.duration || 3;
+          const hookActive = hook && currentTime < hookDur + 0.5;
+          return hookActive ? (
+            <HookOverlay
+              hookText={hook.text}
+              hookStyle={hook.style}
+              hookMode={hook.hookMode || 'speaker'}
+              hookDesign={hook.hookDesign || 'glassmorphism'}
+              currentTime={currentTime}
+              duration={hookDur}
+              backgroundVideoUrl={hook.backgroundVideoUrl}
+              aiImageUrl={hook.aiImageUrl}
+            />
+          ) : null;
+        })()}
+        {/* Captions — hidden while hook overlay is active */}
+        {currentCaption && (() => {
+          const hook = previewHook || activeHook;
+          const hookDur = hook?.duration || 3;
+          const hookActive = hook && currentTime < hookDur;
+          return hookActive ? null : (
           <div style={captionStyle}>
             <div className="relative group max-w-[95%]">
               {!isFullHtml && (
@@ -602,8 +643,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
               {renderAnimatedCaption()}
             </div>
           </div>
-        )}
-
+          );
+        })()}
         {!fullScreenMode && !isRecording && (
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[85%] bg-black/40 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-center justify-between z-50 shadow-2xl transition-all duration-300 hover:scale-[1.02] group">
             <button
@@ -656,6 +697,30 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
               <Video size={16} />
               Export Video
             </button>
+
+            <button
+              onClick={() => setShowHookLab(true)}
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-600/20 to-orange-600/20 hover:from-amber-600/30 hover:to-orange-600/30 border border-amber-500/20 text-amber-400 rounded-xl font-bold text-sm transition-all hover:-translate-y-0.5"
+              title="Hook Lab — Test viral hook variants"
+            >
+              <Zap size={16} />
+              Hook Lab
+            </button>
+
+
+            {/* Remove Hook button */}
+            {activeHook && (
+              <button
+                onClick={() => {
+                  if (onActiveHookChange) onActiveHookChange(null);
+                }}
+                className="flex items-center gap-2 px-4 py-3 bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 text-red-400 rounded-xl font-bold text-sm transition-all hover:-translate-y-0.5"
+                title="Remove applied hook"
+              >
+                <X size={14} />
+                Remove Hook
+              </button>
+            )}
           </div>
         )
       }
@@ -672,7 +737,43 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
         srtData={srtData}
         layoutConfig={layoutConfig}
         captionStyleId={captionStyleId}
+        activeHook={activeHook}
       />
+
+      {/* Hook Lab Panel */}
+      <HookLabPanel
+        isOpen={showHookLab}
+        onClose={() => {
+          setShowHookLab(false);
+          setPreviewHook(null);
+        }}
+        srtText={srtTextRaw}
+        topicContext={topicContext}
+        apiKey={apiKey}
+        hasActiveHook={!!activeHook}
+        onRemoveHook={() => {
+          if (onActiveHookChange) onActiveHookChange(null);
+        }}
+        onPreviewHook={(hook) => {
+          setPreviewHook(hook);
+          if (videoRef.current) {
+            videoRef.current.currentTime = 0;
+            videoRef.current.play();
+            setIsPlaying(true);
+          }
+        }}
+        onApplyHook={(hook) => {
+          if (onActiveHookChange) {
+            onActiveHookChange(hook);
+          }
+          setPreviewHook(null);
+          setShowHookLab(false);
+        }}
+        videoRef={videoRef}
+        playerContainerRef={playerContainerRef}
+      />
+
+
 
       {
         isRecording && (

@@ -7,6 +7,7 @@ import { ReelPlayer } from './components/ReelPlayer';
 import { EditorPanel } from './components/EditorPanel';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProjectLibrary } from './components/ProjectLibrary';
+import { SettingsModal } from './components/SettingsModal';
 import { VisualTimeline } from './components/VisualTimeline';
 import { TemplateGallery } from './components/TemplateGallery';
 import { parseSRT } from './utils/srtParser';
@@ -18,6 +19,7 @@ import { constructPrompt, EXAMPLE_SRT, EXAMPLE_TOPIC, EXAMPLE_HTML, EXAMPLE_JSON
 import { saveProjectWithVideo, loadProjectWithVideo, SavedProject } from './utils/projectStorageWithVideo';
 import { AnimationTemplate } from './utils/templates';
 import { DEFAULT_STYLE_ID } from './utils/captionStyles';
+import { ActiveHook, HOOK_DESIGNS, HookDesign } from './services/hookService';
 import { BRollClip } from './services/brollService';
 
 const App: React.FC = () => {
@@ -60,6 +62,7 @@ const App: React.FC = () => {
     const [modelName, setModelName] = useState(() => {
         return localStorage.getItem('gemini_model_pref') || APP_CONFIG.DEFAULT_MODEL;
     });
+    const [showSettings, setShowSettings] = useState(false);
 
     // Timeline state — lifted from ReelPlayer so EditorPanel's VisualTimeline can read/control it
     const [videoDuration, setVideoDuration] = useState(0);
@@ -82,7 +85,9 @@ const App: React.FC = () => {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveProjectName, setSaveProjectName] = useState('');
     const [captionStyleId, setCaptionStyleId] = useState(DEFAULT_STYLE_ID);
+    const [activeHook, setActiveHook] = useState<ActiveHook | null>(null);
     const [brollClips, setBRollClips] = useState<BRollClip[]>([]);
+    const [animationDesign, setAnimationDesign] = useState<string>('');
 
     const handleSubtitleClick = (item: SRTItem) => {
         setEditingSubtitle(item);
@@ -251,7 +256,8 @@ const App: React.FC = () => {
                 modelName,
                 existingHtml,
                 existingLayout,
-                isAudioOnly
+                isAudioOnly,
+                animationDesign || undefined
             );
             setGeneratedContent(content);
             // Clear refinement text after success? Optional. Keeping it allows user to iterate.
@@ -309,7 +315,7 @@ const App: React.FC = () => {
 
         try {
             // Initial Generation - No existing content yet
-            const content = await generateReelContent(currentSrtRaw, currentTopic, apiKey, modelName, undefined, undefined, isAudioOnly);
+            const content = await generateReelContent(currentSrtRaw, currentTopic, apiKey, modelName, undefined, undefined, isAudioOnly, animationDesign || undefined);
 
             if (isManualModeRef.current) {
                 // User already entered manual mode, ask to replace
@@ -399,7 +405,7 @@ const App: React.FC = () => {
                     Desktop Required
                 </h2>
                 <p className="text-gray-500 max-w-xs leading-relaxed text-sm">
-                    Lumina Studio is designed for larger screens.
+                    Reel Composer is designed for larger screens.
                     <br /><br />
                     Open on your <strong className="text-gray-300">laptop</strong> or <strong className="text-gray-300">desktop</strong>.
                 </p>
@@ -425,7 +431,7 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="font-display font-semibold text-sm tracking-tight text-white leading-none">
-                                            Lumina Studio
+                                            Reel Composer
                                         </span>
                                         <span className="text-[9px] text-gray-500 font-mono tracking-[0.15em] uppercase">
                                             Creative Suite
@@ -434,9 +440,9 @@ const App: React.FC = () => {
                                 </div>
 
                                 <div className="pointer-events-auto flex items-center gap-1.5">
-                                    <div className="hidden lg:flex items-center gap-0.5 bg-white/[0.03] rounded-xl p-0.5 border border-white/[0.04] mr-2">
+                                    <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-xl p-0.5 border border-white/[0.04] mr-2">
                                         <button
-                                            onClick={handleResetAuth}
+                                            onClick={() => setShowSettings(true)}
                                             className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-gray-500 hover:text-white hover:bg-white/[0.06] transition-all flex items-center gap-1.5"
                                             title="Settings"
                                         >
@@ -561,6 +567,34 @@ const App: React.FC = () => {
 
                                             {/* Pinned Generate button — always visible */}
                                             <div className="p-6 pt-3 border-t border-white/[0.04] bg-[var(--color-bg-surface-2)] relative z-10 shrink-0">
+                                                {/* Animation Design Style Selector */}
+                                                <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-hide">
+                                                    <button
+                                                        onClick={() => setAnimationDesign('')}
+                                                        className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
+                                                            !animationDesign
+                                                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                                                                : 'bg-white/[0.03] text-gray-500 hover:text-gray-300 border border-transparent hover:border-white/10'
+                                                        }`}
+                                                    >
+                                                        ⚡ Default
+                                                    </button>
+                                                    {HOOK_DESIGNS.map(d => (
+                                                        <button
+                                                            key={d.id}
+                                                            onClick={() => setAnimationDesign(d.id)}
+                                                            className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
+                                                                animationDesign === d.id
+                                                                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                                                    : 'bg-white/[0.03] text-gray-500 hover:text-gray-300 border border-transparent hover:border-white/10'
+                                                            }`}
+                                                        >
+                                                            <span>{d.icon}</span>
+                                                            {d.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
                                                 <button
                                                     onClick={handleEnterStudio}
                                                     disabled={isGenerating}
@@ -639,6 +673,11 @@ const App: React.FC = () => {
                                                 externalSeekTime={externalSeekTime}
                                                 captionStyleId={captionStyleId}
                                                 brollClips={brollClips}
+                                                srtTextRaw={srtTextRaw}
+                                                topicContext={topicContext}
+                                                apiKey={apiKey}
+                                                activeHook={activeHook}
+                                                onActiveHookChange={setActiveHook}
                                             />
                                         </div>
 
@@ -892,6 +931,15 @@ const App: React.FC = () => {
                     onClose={() => setShowLibrary(false)}
                 />
             )}
+
+            {/* Settings Modal */}
+            <SettingsModal
+                isOpen={showSettings}
+                onClose={() => setShowSettings(false)}
+                apiKey={apiKey}
+                setApiKey={setApiKey}
+                onSaveApiKey={saveApiKeyToStorage}
+            />
         </>
     );
 };

@@ -76,7 +76,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-display font-bold tracking-tight text-white leading-none">
-                    Lumina Studio
+                    Reel Composer
                   </h1>
                   <span className="text-[10px] text-gray-500 font-mono tracking-[0.2em] uppercase">Creative Suite</span>
                 </div>

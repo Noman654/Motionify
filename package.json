@@ -1,9 +1,9 @@
 {
-  "name": "lumina-studio",
+  "name": "reel-composer",
   "private": true,
   "version": "1.2.5",
   "description": "Professional reel and short-form video composer powered by FFmpeg",
-  "author": "Lumina Studio",
+  "author": "Reel Composer",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -15,8 +15,8 @@
     "electron:build:win": "vite build && cross-env npm_config_platform=win32 npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && electron-builder build --win --x64"
   },
   "build": {
-    "appId": "com.luminastudio.app",
-    "productName": "Lumina Studio",
+    "appId": "com.reelcomposer.app",
+    "productName": "Reel Composer",
     "mac": {
       "category": "public.app-category.video"
     },

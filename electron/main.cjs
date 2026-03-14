@@ -242,7 +242,7 @@ ipcMain.handle('start-render', async (event, { width, height, fps }) => {
                     .outputOptions([
                         '-c:v libx264',
                         '-pix_fmt yuv420p',
-                        '-preset fast',
+                        '-preset ultrafast',
                         '-crf 23'
                     ])
                     .save(tempVideoPath)

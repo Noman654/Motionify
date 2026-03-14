@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertCircle, Loader2, Zap } from 'lucide-react';
 import { LayoutConfigStep, SRTItem } from '../types';
 import { renderExportCaption, DEFAULT_STYLE_ID } from '../utils/captionStyles';
+import { ActiveHook, HookStyle } from '../services/hookService';
 
 interface ExportModalProps {
     isOpen: boolean;
@@ -15,14 +16,247 @@ interface ExportModalProps {
     srtData?: SRTItem[];
     layoutConfig?: LayoutConfigStep[];
     captionStyleId?: string;
+    activeHook?: ActiveHook | null;
 }
 
 
-// SubtitleRenderer removed (using Canvas 2D now)
+/* ── Canvas 2D Hook Renderer for Export ── */
+function renderHookOnCanvas(
+    ctx: CanvasRenderingContext2D,
+    hook: ActiveHook,
+    W: number,
+    H: number,
+    opacity: number,
+    time: number
+) {
+    ctx.save();
+    ctx.globalAlpha = opacity;
 
+    /* Dark backdrop */
+    ctx.fillStyle = 'rgba(0,0,0,0.92)';
+    ctx.fillRect(0, 0, W, H);
+
+    /* Entrance animation factor (0→1 over first 0.5s) */
+    const t = Math.min(1, time / 0.5);
+    const ease = 1 - Math.pow(1 - t, 3); /* easeOutCubic */
+
+    const centerX = W / 2;
+    const centerY = H / 2;
+
+    switch (hook.style) {
+        case 'numbered_list': {
+            const match = hook.text.match(/^(\d+)\s*(.*)/);
+            const num = match ? match[1] : '3';
+            const rest = match ? match[2] : hook.text;
+
+            /* Big number */
+            ctx.font = `900 ${Math.round(W * 0.28)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = '#fbbf24';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(251,191,36,0.4)';
+            ctx.shadowBlur = 60;
+            const numY = centerY - H * 0.08 + (1 - ease) * -80;
+            ctx.globalAlpha = opacity * ease;
+            ctx.fillText(num, centerX, numY);
+            ctx.shadowBlur = 0;
+
+            /* Accent line */
+            const lineW = W * 0.5 * ease;
+            const lineGrad = ctx.createLinearGradient(centerX - lineW / 2, 0, centerX + lineW / 2, 0);
+            lineGrad.addColorStop(0, 'transparent');
+            lineGrad.addColorStop(0.5, '#fbbf24');
+            lineGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = lineGrad;
+            ctx.fillRect(centerX - lineW / 2, centerY + H * 0.04, lineW, 3);
+
+            /* Text */
+            const textEase = Math.min(1, Math.max(0, (time - 0.3) / 0.4));
+            const textT = 1 - Math.pow(1 - textEase, 3);
+            ctx.font = `700 ${Math.round(W * 0.045)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = '#ffffff';
+            ctx.globalAlpha = opacity * textT;
+            ctx.textAlign = 'center';
+            const textY = centerY + H * 0.1 + (1 - textT) * 30;
+            wrapText(ctx, rest.toUpperCase(), centerX, textY, W * 0.8, W * 0.055);
+
+            /* Badge */
+            ctx.font = `600 ${Math.round(W * 0.02)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = 'rgba(251,191,36,0.5)';
+            ctx.globalAlpha = opacity * Math.min(1, Math.max(0, (time - 0.8) / 0.3));
+            ctx.fillText('▶ WATCH TO LEARN', centerX, H * 0.9);
+            break;
+        }
+
+        case 'curiosity_gap': {
+            /* Background question mark */
+            ctx.font = `900 ${Math.round(W * 0.4)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = 'rgba(0,243,255,0.06)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('?', W * 0.75, H * 0.25);
+
+            /* Word-by-word reveal */
+            const words = hook.text.split(' ');
+            ctx.font = `700 ${Math.round(W * 0.06)}px Inter, system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#ffffff';
+
+            /* Layout words in wrapped lines */
+            const fontSize = Math.round(W * 0.06);
+            const lineHeight = fontSize * 1.4;
+            const maxW = W * 0.85;
+            let lines: string[] = [];
+            let currentLine = '';
+            for (const word of words) {
+                const testLine = currentLine ? currentLine + ' ' + word : word;
+                if (ctx.measureText(testLine).width > maxW && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            if (currentLine) lines.push(currentLine);
+
+            const totalH = lines.length * lineHeight;
+            const startY = centerY - totalH / 2 + lineHeight / 2;
+
+            let wordIdx = 0;
+            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                const lineWords = lines[lineIdx].split(' ');
+                for (const lw of lineWords) {
+                    const wordDelay = 0.15 + wordIdx * 0.1;
+                    const wordProgress = Math.min(1, Math.max(0, (time - wordDelay) / 0.3));
+                    ctx.globalAlpha = opacity * wordProgress;
+                    wordIdx++;
+                }
+                ctx.globalAlpha = opacity * Math.min(1, Math.max(0, (time - 0.15) / 0.5));
+                ctx.fillText(lines[lineIdx], centerX, startY + lineIdx * lineHeight);
+            }
+            break;
+        }
+
+        case 'bold_claim': {
+            /* Red flash (first 0.3s) */
+            if (time < 0.3) {
+                ctx.fillStyle = `rgba(255,0,85,${0.5 * (1 - time / 0.3)})`;
+                ctx.fillRect(0, 0, W, H);
+            }
+
+            /* Text slam */
+            const slamT = Math.min(1, Math.max(0, (time - 0.1) / 0.4));
+            const slamEase = 1 - Math.pow(1 - slamT, 3);
+            const scale = slamT < 1 ? 2.5 - 1.5 * slamEase : 1;
+
+            ctx.save();
+            ctx.translate(centerX, centerY - H * 0.05);
+            ctx.scale(scale, scale);
+            ctx.font = `900 ${Math.round(W * 0.065)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(255,0,85,0.4)';
+            ctx.shadowBlur = 40;
+            ctx.globalAlpha = opacity * slamEase;
+            wrapText(ctx, hook.text.toUpperCase(), 0, 0, W * 0.85 / scale, W * 0.075 / scale);
+            ctx.restore();
+            ctx.shadowBlur = 0;
+
+            /* Danger line */
+            const lineProgress = Math.min(1, Math.max(0, (time - 0.5) / 0.4));
+            const dLineW = W * 0.7 * lineProgress;
+            const lg = ctx.createLinearGradient(centerX - dLineW / 2, 0, centerX + dLineW / 2, 0);
+            lg.addColorStop(0, 'transparent');
+            lg.addColorStop(0.3, '#ff0055');
+            lg.addColorStop(0.7, '#ff4400');
+            lg.addColorStop(1, 'transparent');
+            ctx.fillStyle = lg;
+            ctx.globalAlpha = opacity * lineProgress;
+            ctx.fillRect(centerX - dLineW / 2, centerY + H * 0.1, dLineW, 4);
+
+            /* Badge */
+            ctx.font = `700 ${Math.round(W * 0.02)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = 'rgba(255,0,85,0.6)';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = opacity * Math.min(1, Math.max(0, (time - 0.7) / 0.3));
+            ctx.fillText('⚠ STOP SCROLLING', centerX, H * 0.9);
+            break;
+        }
+
+        case 'pain_point': {
+            /* Emoji */
+            ctx.font = `${Math.round(W * 0.18)}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = opacity * ease;
+            ctx.fillText('🎯', centerX, centerY - H * 0.12);
+
+            /* Text */
+            const textT2 = Math.min(1, Math.max(0, (time - 0.3) / 0.5));
+            const textEase2 = 1 - Math.pow(1 - textT2, 3);
+            ctx.font = `600 ${Math.round(W * 0.05)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.globalAlpha = opacity * textEase2;
+            const tY = centerY + H * 0.05 + (1 - textEase2) * 20;
+            wrapText(ctx, hook.text, centerX, tY, W * 0.8, W * 0.06);
+
+            /* Golden line */
+            const lP = Math.min(1, Math.max(0, (time - 0.6) / 0.4));
+            const glW = W * 0.4 * lP;
+            const glg = ctx.createLinearGradient(centerX - glW / 2, 0, centerX + glW / 2, 0);
+            glg.addColorStop(0, 'transparent');
+            glg.addColorStop(0.5, '#fbbf24');
+            glg.addColorStop(1, 'transparent');
+            ctx.fillStyle = glg;
+            ctx.globalAlpha = opacity * lP;
+            ctx.fillRect(centerX - glW / 2, centerY + H * 0.14, glW, 2);
+
+            /* CTA */
+            ctx.font = `600 ${Math.round(W * 0.025)}px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = '#fbbf24';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = opacity * Math.min(1, Math.max(0, (time - 0.9) / 0.3));
+            ctx.fillText("Here's the fix ↓", centerX, centerY + H * 0.2);
+            break;
+        }
+    }
+
+    ctx.restore();
+}
+
+/* Helper: wrap text on canvas */
+function wrapText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+) {
+    const words = text.split(' ');
+    let line = '';
+    const lines: string[] = [];
+    for (const word of words) {
+        const testLine = line ? line + ' ' + word : word;
+        if (ctx.measureText(testLine).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+        } else {
+            line = testLine;
+        }
+    }
+    if (line) lines.push(line);
+    const totalH = lines.length * lineHeight;
+    const startY = y - totalH / 2 + lineHeight / 2;
+    for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], x, startY + i * lineHeight);
+    }
+}
 
 export const ExportModal: React.FC<ExportModalProps> = ({
-    isOpen, onClose, videoFile, htmlContent, bgMusicFile, bgMusicVolume = 0.2, duration = 10, srtData, layoutConfig = [], captionStyleId = DEFAULT_STYLE_ID
+    isOpen, onClose, videoFile, htmlContent, bgMusicFile, bgMusicVolume = 0.2, duration = 10, srtData, layoutConfig = [], captionStyleId = DEFAULT_STYLE_ID, activeHook = null
 }) => {
 
     const [status, setStatus] = useState<'idle' | 'rendering' | 'merging' | 'done' | 'error'>('idle');
@@ -135,9 +369,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             const totalFrames = Math.ceil(clipDuration * FPS);
             let lastOverlayHeight = -1; // Track to avoid unnecessary resizes
 
+            // Pre-compute hook frame range to avoid per-frame checks
+            const hookEndFrame = activeHook ? Math.ceil(activeHook.duration * FPS) : -1;
+            const hookFadeFrame = activeHook ? Math.ceil((activeHook.duration - 0.5) * FPS) : -1;
+
             // === RENDER LOOP ===
             for (let i = 0; i < totalFrames; i++) {
                 const time = clipStart + i / FPS;
+                const isHookFrame = activeHook && i < hookEndFrame;
 
                 // 1. Determine current layout
                 let currentLayout = layoutConfig.find(step => time >= step.startTime && time < step.endTime);
@@ -168,53 +407,54 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     videoY = htmlH;
                 }
 
-                // 3. Resize overlay window if HTML height changed
+                // 3. Resize overlay window if HTML height changed (skip during hook — not needed)
                 const roundedHtmlH = Math.round(htmlH);
-                if (roundedHtmlH !== lastOverlayHeight && roundedHtmlH > 0) {
+                if (!isHookFrame && roundedHtmlH !== lastOverlayHeight && roundedHtmlH > 0) {
                     await electron.resizeOverlayWindow({ width: WIDTH, height: roundedHtmlH });
                     lastOverlayHeight = roundedHtmlH;
                 }
 
-                // 4. PARALLEL: Seek video + Capture overlay at the same time
-                //    These are independent operations — video seek uses the HTML
-                //    video decoder, overlay capture uses a separate BrowserWindow.
-                //    Running them in parallel saves ~30-100ms per frame.
-                const seekPromise = new Promise<void>(resolve => {
-                    video.currentTime = time;
-                    const onSeeked = () => {
-                        video.removeEventListener('seeked', onSeeked);
-                        resolve();
-                    };
-                    video.addEventListener('seeked', onSeeked);
-                    queueMicrotask(() => {
-                        if (!video.seeking) {
+                // 4. PARALLEL: Seek video + Capture overlay
+                //    OPTIMIZATION: During hook frames, the hook is a full-screen opaque overlay,
+                //    so we skip BOTH the expensive overlay capture AND video seek entirely.
+                //    This saves ~50-150ms per frame for the first 90-240 frames.
+                let overlayBitmap: ImageBitmap | null = null;
+
+                if (!isHookFrame) {
+                    const seekPromise = new Promise<void>(resolve => {
+                        video.currentTime = time;
+                        const onSeeked = () => {
                             video.removeEventListener('seeked', onSeeked);
                             resolve();
-                        }
+                        };
+                        video.addEventListener('seeked', onSeeked);
+                        queueMicrotask(() => {
+                            if (!video.seeking) {
+                                video.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            }
+                        });
                     });
-                });
 
-                // Start overlay capture + bitmap decode in parallel with seek
-                let overlayBitmap: ImageBitmap | null = null;
-                const overlayPromise = (htmlH > 0)
-                    ? electron.captureOverlayFrame({ time }).then(async (result) => {
-                        if (result.success && result.buffer) {
-                            const blob = new Blob([result.buffer], { type: 'image/jpeg' });
-                            overlayBitmap = await createImageBitmap(blob);
-                        }
-                    }).catch((e: any) => console.error("Overlay capture error:", e))
-                    : Promise.resolve();
+                    const overlayPromise = (htmlH > 0)
+                        ? electron.captureOverlayFrame({ time }).then(async (result) => {
+                            if (result.success && result.buffer) {
+                                const blob = new Blob([result.buffer], { type: 'image/jpeg' });
+                                overlayBitmap = await createImageBitmap(blob);
+                            }
+                        }).catch((e: any) => console.error("Overlay capture error:", e))
+                        : Promise.resolve();
 
-                // Wait for BOTH to complete
-                await Promise.all([seekPromise, overlayPromise]);
+                    await Promise.all([seekPromise, overlayPromise]);
+                }
 
                 // 5. Clear canvas
                 ctx.clearRect(0, 0, WIDTH, HEIGHT);
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-                // 6. DRAW VIDEO (if visible)
-                if (videoH > 0) {
+                // 6. DRAW VIDEO (skip during hook — fully covered)
+                if (videoH > 0 && !isHookFrame) {
                     const vidRatio = video.videoWidth / video.videoHeight;
                     const targetRatio = WIDTH / videoH;
                     let drawW = WIDTH, drawH = videoH, dx = 0, dy = videoY;
@@ -237,14 +477,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     ctx.restore();
                 }
 
-                // 7. DRAW HTML OVERLAY (already decoded to bitmap during parallel step)
+                // 7. DRAW HTML OVERLAY (skip during hook — fully covered)
                 if (overlayBitmap) {
                     ctx.drawImage(overlayBitmap, 0, 0, WIDTH, roundedHtmlH);
                     overlayBitmap.close();
                 }
 
-                // 8. DRAW SUBTITLES (using caption style engine)
-                if (srtData?.length) {
+                // 8. DRAW HOOK OVERLAY
+                if (isHookFrame && activeHook) {
+                    const hookOpacity = i > hookFadeFrame
+                        ? Math.max(0, 1 - (time - (activeHook.duration - 0.5)) / 0.5)
+                        : 1;
+                    renderHookOnCanvas(ctx, activeHook, WIDTH, HEIGHT, hookOpacity, time);
+                }
+
+                // 9. DRAW SUBTITLES (skip during hook)
+                if (srtData?.length && !isHookFrame) {
                     const currentSub = srtData.find(item => time >= item.startTime && time <= item.endTime);
                     if (currentSub) {
                         const WORDS_PER_VIEW = 5;
@@ -278,8 +526,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }
                 }
 
-                // 9. Send frame to FFmpeg (quality 0.82 is sufficient — FFmpeg re-encodes with libx264)
-                const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.82));
+                // 10. Send frame to FFmpeg
+                // Hook frames are flat graphics — use lower quality for faster encoding
+                const jpegQuality = isHookFrame ? 0.6 : 0.82;
+                const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', jpegQuality));
                 if (blob) await electron.writeFrame(await blob.arrayBuffer());
 
                 // Throttle UI updates to every 15 frames for max render speed
