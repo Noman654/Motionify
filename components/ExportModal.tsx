@@ -611,57 +611,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Email Capture */}
-                        {!emailSubmitted ? (
-                            <div className="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
-                                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2">
-                                    <Mail size={12} className="text-fuchsia-400" /> Join Desktop Waitlist
-                                </h4>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="your@email.com"
-                                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && email.includes('@')) {
-                                                const waitlist = JSON.parse(localStorage.getItem('motionify_waitlist') || '[]');
-                                                if (!waitlist.includes(email)) waitlist.push(email);
-                                                localStorage.setItem('motionify_waitlist', JSON.stringify(waitlist));
-                                                setEmailSubmitted(true);
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (!email.includes('@')) return;
-                                            const waitlist = JSON.parse(localStorage.getItem('motionify_waitlist') || '[]');
-                                            if (!waitlist.includes(email)) waitlist.push(email);
-                                            localStorage.setItem('motionify_waitlist', JSON.stringify(waitlist));
-                                            setEmailSubmitted(true);
-                                        }}
-                                        disabled={!email.includes('@')}
-                                        className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition-all text-sm"
-                                    >
-                                        Notify Me
-                                    </button>
-                                </div>
-                                <p className="text-[10px] text-gray-600">We'll email you when Desktop Pro launches. No spam.</p>
-                            </div>
-                        ) : (
-                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
-                                <CheckCircle size={20} className="text-green-400 shrink-0" />
-                                <div>
-                                    <p className="text-sm font-bold text-green-300">You're on the list!</p>
-                                    <p className="text-[11px] text-green-400/60">We'll notify {email} when Desktop Pro is ready.</p>
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Interest Form CTA */}
                         <a
-                            href="https://forms.gle/YOUR_GOOGLE_FORM_ID"
+                            href="https://forms.gle/1HT7g9bkrssooxwh9"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-purple-900/30"
