@@ -9,6 +9,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProjectLibrary } from './components/ProjectLibrary';
 import { SettingsModal } from './components/SettingsModal';
 import { VisualTimeline } from './components/VisualTimeline';
+import { FeedbackButton } from './components/FeedbackButton';
 
 import { parseSRT } from './utils/srtParser';
 import { AppState, GeneratedContent, SRTItem, MediaAsset } from './types';
@@ -474,7 +475,7 @@ const App: React.FC = () => {
                     Desktop Required
                 </h2>
                 <p className="text-gray-500 max-w-xs leading-relaxed text-sm">
-                    Reel Composer is designed for larger screens.
+                    Motionify is designed for larger screens.
                     <br /><br />
                     Open on your <strong className="text-gray-300">laptop</strong> or <strong className="text-gray-300">desktop</strong>.
                 </p>
@@ -500,7 +501,7 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="font-display font-semibold text-sm tracking-tight text-white leading-none">
-                                            Reel Composer
+                                            Motionify
                                         </span>
                                         <span className="text-[9px] text-gray-500 font-mono tracking-[0.15em] uppercase">
                                             Creative Suite
@@ -764,6 +765,8 @@ const App: React.FC = () => {
                                                 apiKey={apiKey}
                                                 activeHook={activeHook}
                                                 onActiveHookChange={setActiveHook}
+                                                onRetryGeneration={handleGenerate}
+                                                isGenerating={isGenerating}
                                             />
                                         </div>
 
@@ -1032,6 +1035,9 @@ const App: React.FC = () => {
                 setApiKey={setApiKey}
                 onSaveApiKey={saveApiKeyToStorage}
             />
+
+            {/* Floating Feedback Button */}
+            <FeedbackButton />
         </>
     );
 };

@@ -225,7 +225,7 @@ After running these tests, please tell me:
 
 ```javascript
 // Run all checks at once
-console.log('=== REEL COMPOSER DEBUG ===');
+console.log('=== MOTIONIFY DEBUG ===');
 console.log('1. localStorage supported?', typeof(Storage) !== 'undefined');
 console.log('2. Can write?', (() => { try { localStorage.setItem('t','t'); return true; } catch { return false; }})());
 console.log('3. Saved projects:', JSON.parse(localStorage.getItem('reel_composer_projects') || '[]').length);

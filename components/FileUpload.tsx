@@ -597,9 +597,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
 
                     {/* Minimal tools link */}
                     <div className="flex justify-center gap-4 text-[11px] text-gray-600 pb-4">
-                        <a href="https://transcri.io/en/subtitle-generator/srt" target="_blank" rel="noreferrer" className="hover:text-purple-400 transition-colors flex items-center gap-1">
-                            <ExternalLink size={9} /> Transcri.io
-                        </a>
                         <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="hover:text-purple-400 transition-colors flex items-center gap-1">
                             <Music size={9} /> Adobe Enhance
                         </a>

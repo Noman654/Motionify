@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { X, CheckCircle, AlertCircle, Loader2, Zap } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Loader2, Zap, Monitor, Mail, ExternalLink, ChevronDown, ChevronUp, Video } from 'lucide-react';
 import { LayoutConfigStep, SRTItem } from '../types';
 import { renderExportCaption, DEFAULT_STYLE_ID } from '../utils/captionStyles';
 import { ActiveHook, HookStyle } from '../services/hookService';
@@ -266,6 +266,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     const [isNative, setIsNative] = useState(false);
     const [renderStartTime, setRenderStartTime] = useState(0);
     const [renderEndTime, setRenderEndTime] = useState(duration);
+
+    // Web upsell state
+    const [email, setEmail] = useState('');
+    const [emailSubmitted, setEmailSubmitted] = useState(false);
+    const [showRecordingTips, setShowRecordingTips] = useState(false);
 
 
     // Keep end time synced with duration
@@ -582,12 +587,136 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Zap className="text-purple-400" /> Native Export
+                        {isNative ? <Zap className="text-purple-400" /> : <Monitor className="text-purple-400" />}
+                        {isNative ? 'Native Export' : 'Export Video'}
                     </h2>
                     <button onClick={onClose}><X className="text-gray-400 hover:text-white" /></button>
                 </div>
 
-                {status === 'idle' && (
+                {status === 'idle' && !isNative && (
+                    <div className="space-y-4">
+                        {/* Desktop Required Banner */}
+                        <div className="bg-gradient-to-br from-purple-900/30 to-fuchsia-900/20 p-5 rounded-xl border border-purple-500/30 relative overflow-hidden">
+                            <div className="absolute -top-8 -right-8 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                        <Zap size={16} className="text-purple-400" />
+                                    </div>
+                                    <h3 className="text-purple-200 font-bold">Desktop Export Required</h3>
+                                </div>
+                                <p className="text-purple-200/60 text-sm leading-relaxed">
+                                    Video export uses FFmpeg rendering which requires the <strong className="text-purple-300">Motionify Desktop App</strong>. Get notified when it's available!
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Email Capture */}
+                        {!emailSubmitted ? (
+                            <div className="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+                                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2">
+                                    <Mail size={12} className="text-fuchsia-400" /> Join Desktop Waitlist
+                                </h4>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="your@email.com"
+                                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && email.includes('@')) {
+                                                const waitlist = JSON.parse(localStorage.getItem('motionify_waitlist') || '[]');
+                                                if (!waitlist.includes(email)) waitlist.push(email);
+                                                localStorage.setItem('motionify_waitlist', JSON.stringify(waitlist));
+                                                setEmailSubmitted(true);
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            if (!email.includes('@')) return;
+                                            const waitlist = JSON.parse(localStorage.getItem('motionify_waitlist') || '[]');
+                                            if (!waitlist.includes(email)) waitlist.push(email);
+                                            localStorage.setItem('motionify_waitlist', JSON.stringify(waitlist));
+                                            setEmailSubmitted(true);
+                                        }}
+                                        disabled={!email.includes('@')}
+                                        className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition-all text-sm"
+                                    >
+                                        Notify Me
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-600">We'll email you when Desktop Pro launches. No spam.</p>
+                            </div>
+                        ) : (
+                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+                                <CheckCircle size={20} className="text-green-400 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-bold text-green-300">You're on the list!</p>
+                                    <p className="text-[11px] text-green-400/60">We'll notify {email} when Desktop Pro is ready.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Interest Form CTA */}
+                        <a
+                            href="https://forms.gle/YOUR_GOOGLE_FORM_ID"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-purple-900/30"
+                        >
+                            <ExternalLink size={14} /> Interest in Desktop App (Pro)
+                        </a>
+
+                        {/* Screen Recording Tips */}
+                        <div className="border border-gray-700/50 rounded-xl overflow-hidden">
+                            <button
+                                onClick={() => setShowRecordingTips(!showRecordingTips)}
+                                className="w-full flex items-center justify-between p-3.5 text-left hover:bg-white/[0.02] transition-colors"
+                            >
+                                <span className="text-xs font-bold text-gray-300 flex items-center gap-2">
+                                    <Video size={13} className="text-cyan-400" />
+                                    💡 Want your video now? Screen record the preview!
+                                </span>
+                                {showRecordingTips ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+                            </button>
+                            {showRecordingTips && (
+                                <div className="px-4 pb-4 space-y-2 animate-fade-in border-t border-gray-700/30">
+                                    <p className="text-[11px] text-gray-400 pt-3 leading-relaxed">
+                                        The preview canvas renders your video in real-time. You can capture it using:
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-start gap-2 bg-gray-800/40 p-2.5 rounded-lg">
+                                            <span className="text-xs">🍎</span>
+                                            <div>
+                                                <p className="text-[11px] font-bold text-white">macOS — QuickTime Player</p>
+                                                <p className="text-[10px] text-gray-500">File → New Screen Recording → select the preview area</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2 bg-gray-800/40 p-2.5 rounded-lg">
+                                            <span className="text-xs">🖥️</span>
+                                            <div>
+                                                <p className="text-[11px] font-bold text-white">Any OS — OBS Studio (Free)</p>
+                                                <p className="text-[10px] text-gray-500">Add "Window Capture" → select browser → crop to preview</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2 bg-gray-800/40 p-2.5 rounded-lg">
+                                            <span className="text-xs">🪟</span>
+                                            <div>
+                                                <p className="text-[11px] font-bold text-white">Windows — Xbox Game Bar</p>
+                                                <p className="text-[10px] text-gray-500">Win+G → Start Recording (captures active window)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-cyan-400/60 pt-1">Tip: Play the preview at 1× speed while recording for best results.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {status === 'idle' && isNative && (
                     <div className="space-y-4">
                         <div className="bg-purple-900/20 p-4 rounded-xl border border-purple-500/30">
                             <h3 className="text-purple-300 font-bold mb-1">Exact Replica Export</h3>
@@ -629,8 +758,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                             <p className="text-[11px] text-gray-500">Duration: {Math.max(0, renderEndTime - renderStartTime).toFixed(1)}s ({Math.ceil(Math.max(0, renderEndTime - renderStartTime) * 30)} frames)</p>
                         </div>
 
-                        <button onClick={startNativeRender} disabled={!isNative} className="w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 text-white font-bold rounded-lg transition-all">
-                            {isNative ? 'Start Render' : 'Requires Desktop App'}
+                        <button onClick={startNativeRender} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-all">
+                            Start Render
                         </button>
                     </div>
                 )}

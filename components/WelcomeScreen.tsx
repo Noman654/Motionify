@@ -76,7 +76,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-display font-bold tracking-tight text-white leading-none">
-                    Reel Composer
+                    Motionify
                   </h1>
                   <span className="text-[10px] text-gray-500 font-mono tracking-[0.2em] uppercase">Creative Suite</span>
                 </div>
@@ -155,8 +155,27 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
                 <div className="flex items-start gap-2 px-1">
                   <ShieldCheck className="text-emerald-500/60 shrink-0 mt-0.5" size={13} />
                   <p className="text-[11px] text-gray-600 leading-tight">
-                    Stored locally. Sent directly to Google's API only.
+                    Stored locally in your browser. Never sent to any external server.
                   </p>
+                </div>
+
+                {/* Step-by-step guide for new users */}
+                <div className="mt-3 p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">How to get your free key</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 w-4 h-4 rounded flex items-center justify-center shrink-0">1</span>
+                      <p className="text-[10px] text-gray-500">Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-purple-400 underline">Google AI Studio</a></p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 w-4 h-4 rounded flex items-center justify-center shrink-0">2</span>
+                      <p className="text-[10px] text-gray-500">Click <strong className="text-gray-400">"Create API Key"</strong> (sign in with Google)</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 w-4 h-4 rounded flex items-center justify-center shrink-0">3</span>
+                      <p className="text-[10px] text-gray-500">Copy and paste the key above — it's <strong className="text-gray-400">100% free</strong></p>
+                    </div>
+                  </div>
                 </div>
               </div>
 

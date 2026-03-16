@@ -31,6 +31,8 @@ interface ReelPlayerProps {
   apiKey?: string;
   activeHook?: ActiveHook | null;
   onActiveHookChange?: (hook: ActiveHook | null) => void;
+  onRetryGeneration?: () => void;
+  isGenerating?: boolean;
 }
 
 export const ReelPlayer: React.FC<ReelPlayerProps> = ({
@@ -54,7 +56,9 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   topicContext = '',
   apiKey = '',
   activeHook = null,
-  onActiveHookChange
+  onActiveHookChange,
+  onRetryGeneration,
+  isGenerating = false
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -702,6 +706,18 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
               <Video size={16} />
               Export Video
             </button>
+
+            {onRetryGeneration && (
+              <button
+                onClick={onRetryGeneration}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 hover:from-cyan-600/30 hover:to-blue-600/30 border border-cyan-500/20 text-cyan-400 rounded-xl font-bold text-sm transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Regenerate animation if it appears blank or broken"
+              >
+                {isGenerating ? <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-white rounded-full animate-spin" /> : <RefreshCw size={14} />}
+                {isGenerating ? 'Generating...' : 'Retry Animation'}
+              </button>
+            )}
 
             <button
               onClick={() => setShowHookLab(true)}

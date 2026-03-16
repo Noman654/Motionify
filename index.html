@@ -5,21 +5,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
-    content="Lumina Studio: AI-powered creative suite for cinematic short-form video. Transform scripts into viral Reels and TikToks with intelligent animation." />
+    content="Motionify: AI-powered creative suite for cinematic short-form video. Transform scripts into viral Reels and TikToks with intelligent animation." />
   <meta name="keywords"
-    content="Video Editor, AI Video, Short-form Content, Motion Graphics, Lumina Studio, Reels Creator, TikTok Editor" />
-  <meta name="application-name" content="Lumina Studio" />
+    content="Video Editor, AI Video, Short-form Content, Motion Graphics, Motionify, Reels Creator, TikTok Editor" />
+  <meta name="application-name" content="Motionify" />
 
-  <!-- Favicon (Diamond/Prism Icon) -->
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23050507%22/><path d=%22M50 15 L80 45 L50 85 L20 45 Z%22 fill=%22url(%23g)%22 opacity=%220.9%22/><path d=%22M50 15 L80 45 L50 50 L20 45 Z%22 fill=%22white%22 opacity=%220.2%22/><defs><linearGradient id=%22g%22 x1=%220%25%22 y1=%220%25%22 x2=%22100%25%22 y2=%22100%25%22><stop offset=%220%25%22 stop-color=%22%23a78bfa%22/><stop offset=%2250%25%22 stop-color=%22%23c084fc%22/><stop offset=%22100%25%22 stop-color=%22%23e879f9%22/></linearGradient></defs></svg>">
+  <!-- Favicon (Motionify Icon) -->
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <title>Lumina Studio</title>
+  <title>Motionify</title>
   <link rel="stylesheet" href="/index.css">
+
+  <!-- PostHog Analytics (replace YOUR_POSTHOG_KEY with your actual PostHog project API key) -->
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('YOUR_POSTHOG_KEY', {
+      api_host: 'https://us.i.posthog.com',
+      person_profiles: 'identified_only'
+    });
+  </script>
 </head>
 
 <body class="bg-gray-950 text-white overflow-hidden selection:bg-purple-500/30">

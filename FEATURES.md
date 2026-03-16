@@ -1,6 +1,6 @@
-# Lumina Studio — Complete Feature Reference
+# Motionify — Complete Feature Reference
 
-> This document is a searchable, deep-dive reference of every feature, capability, integration, and technical detail in Lumina Studio.
+> This document is a searchable, deep-dive reference of every feature, capability, integration, and technical detail in Motionify.
 > Use it to quickly find what exists, what's missing, and what can be improved.
 
 ---
@@ -225,7 +225,7 @@ The **Hook Lab** is a specialized system designed to capture attention in the fi
 
 ## Tech Stack (Built With)
 
-Lumina Studio is built using a modern, performant stack optimized for desktop video creation and AI integration.
+Motionify is built using a modern, performant stack optimized for desktop video creation and AI integration.
 
 ### Core Languages & Frameworks
 | Layer | Technology | Description |

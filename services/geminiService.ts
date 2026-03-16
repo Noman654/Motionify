@@ -301,7 +301,7 @@ TASK: Return the FULLY UPDATED and COMPLETE HTML and Layout JSON. The HTML must 
   };
 
   const reelHelperScript = `<script>
-        /* REEL COMPOSER STANDARD LIBRARY */
+        /* MOTIONIFY STANDARD LIBRARY */
         (function() {
             if (typeof HTMLCollection !== 'undefined' && !HTMLCollection.prototype.forEach) {
                 HTMLCollection.prototype.forEach = Array.prototype.forEach;
@@ -318,7 +318,7 @@ TASK: Return the FULLY UPDATED and COMPLETE HTML and Layout JSON. The HTML must 
                     if(element) element.innerHTML = '';
                 }
             };
-            console.log("Reel Composer: Standard Library Loaded");
+            console.log("Motionify: Standard Library Loaded");
         })();
     </script>`;
 

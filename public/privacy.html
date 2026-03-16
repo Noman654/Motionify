@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Motionify Privacy Policy — How we handle your data." />
+  <title>Privacy Policy — Motionify</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050508;
+      --surface: #0a0a10;
+      --text: #e0e0e8;
+      --text-muted: #888;
+      --border: rgba(255,255,255,0.06);
+      --accent: #8b5cf6;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.8; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 700px; margin: 0 auto; padding: 80px 24px 60px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.02em; }
+    .updated { font-size: 13px; color: var(--text-muted); margin-bottom: 40px; }
+    h2 { font-size: 18px; font-weight: 700; margin: 36px 0 12px; color: #f0f0f5; }
+    p, li { font-size: 14px; color: #b0b0c0; margin-bottom: 12px; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 8px; }
+    .highlight {
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.15);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 24px 0;
+    }
+    .highlight p { color: #c084fc; margin: 0; font-weight: 500; }
+    .back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
+    .back:hover { color: var(--text); text-decoration: none; }
+    .footer { border-top: 1px solid var(--border); margin-top: 48px; padding-top: 24px; text-align: center; }
+    .footer p { font-size: 12px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/landing.html" class="back">← Back to Motionify</a>
+
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: March 16, 2026</p>
+
+    <div class="highlight">
+      <p>TL;DR — Your data stays on your device. We don't collect, store, or sell your personal information.</p>
+    </div>
+
+    <h2>1. Data We Don't Collect</h2>
+    <p>Motionify is a client-side web application. We do <strong>not</strong> operate any backend servers that receive, process, or store your data.</p>
+    <ul>
+      <li>We do <strong>not</strong> collect your name, email, or identity</li>
+      <li>We do <strong>not</strong> store any video, audio, or image files you upload</li>
+      <li>We do <strong>not</strong> have access to your API keys</li>
+      <li>We do <strong>not</strong> log your transcripts or generated content</li>
+    </ul>
+
+    <h2>2. API Keys</h2>
+    <p>Motionify requires you to provide your own API keys (Google Gemini, Pexels) to function. These keys are:</p>
+    <ul>
+      <li>Stored <strong>locally in your browser's localStorage</strong> — never transmitted to our servers</li>
+      <li>Sent <strong>directly from your browser to Google/Pexels APIs</strong> — we never act as an intermediary</li>
+      <li>Fully under your control — you can delete them at any time by clearing your browser data</li>
+    </ul>
+
+    <h2>3. File Processing</h2>
+    <p>All video, audio, and image files you upload are processed entirely within your browser or sent directly to third-party APIs:</p>
+    <ul>
+      <li><strong>Video/Audio</strong> — Processed locally in your browser using Web APIs</li>
+      <li><strong>AI Generation</strong> — Sent directly from your browser to Google's Gemini API using your own API key</li>
+      <li><strong>Stock Media</strong> — Fetched directly from Pexels using your own API key</li>
+    </ul>
+    <p>We never receive, store, or have access to these files.</p>
+
+    <h2>4. Analytics</h2>
+    <p>We use <a href="https://posthog.com" target="_blank" rel="noopener noreferrer">PostHog</a> to collect anonymous usage analytics. This helps us understand how people use Motionify and improve the experience. PostHog may collect:</p>
+    <ul>
+      <li>Page views and button clicks (anonymously)</li>
+      <li>Browser type and screen size</li>
+      <li>General geographic region (country-level only)</li>
+    </ul>
+    <p>PostHog does <strong>not</strong> collect your API keys, file contents, or any personal information.</p>
+
+    <h2>5. Local Storage</h2>
+    <p>Motionify uses your browser's localStorage and IndexedDB to save:</p>
+    <ul>
+      <li>API keys (Gemini, Pexels)</li>
+      <li>User preferences (model selection, settings)</li>
+      <li>Saved projects (HTML, layout config, subtitles)</li>
+      <li>Desktop waitlist emails (stored locally, not transmitted)</li>
+    </ul>
+    <p>All of this data lives exclusively on your device. Clearing your browser data removes it permanently.</p>
+
+    <h2>6. Third-Party Services</h2>
+    <p>When you use Motionify, your browser communicates directly with:</p>
+    <ul>
+      <li><strong>Google Gemini API</strong> — for AI content generation and transcription (<a href="https://ai.google.dev/terms" target="_blank">Google AI Terms</a>)</li>
+      <li><strong>Pexels API</strong> — for stock video/photo search (<a href="https://www.pexels.com/terms-of-service/" target="_blank">Pexels Terms</a>)</li>
+      <li><strong>PostHog</strong> — for anonymous analytics (<a href="https://posthog.com/privacy" target="_blank">PostHog Privacy</a>)</li>
+    </ul>
+
+    <h2>7. Changes</h2>
+    <p>We may update this policy as Motionify evolves. Changes will be posted on this page with an updated date.</p>
+
+    <h2>8. Contact</h2>
+    <p>For questions about this privacy policy, reach out via our <a href="https://forms.gle/YOUR_FEEDBACK_FORM_ID" target="_blank">Feedback Form</a>.</p>
+
+    <div class="footer">
+      <p>© 2026 Motionify. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

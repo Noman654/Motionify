@@ -1,9 +1,9 @@
 {
-  "name": "reel-composer",
+  "name": "motionify",
   "private": true,
   "version": "1.2.5",
   "description": "Professional reel and short-form video composer powered by FFmpeg",
-  "author": "Reel Composer",
+  "author": "Motionify",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -15,8 +15,8 @@
     "electron:build:win": "vite build && cross-env npm_config_platform=win32 npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && electron-builder build --win --x64"
   },
   "build": {
-    "appId": "com.reelcomposer.app",
-    "productName": "Reel Composer",
+    "appId": "app.motionify",
+    "productName": "Motionify",
     "mac": {
       "category": "public.app-category.video"
     },
