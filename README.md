@@ -1,12 +1,48 @@
-# Lumina Studio (Reel Composer)
+# Motionify
 
-[![reel-composer-banner.png](https://i.postimg.cc/NMjTQJ7D/reel-composer-banner.png)](https://postimg.cc/XZtX8gPB)
 
-**Lumina Studio** is a professional desktop app that transforms raw talking-head footage into high-retention **Edutainment** content (Instagram Reels / TikToks / YouTube Shorts).
+**Motionify** is a professional desktop app that transforms raw talking-head footage into high-retention **Edutainment** content (Instagram Reels / TikToks / YouTube Shorts).
 
 It combines **Google Gemini AI**, **FFmpeg**, and **GSAP animations** to auto-generate broadcast-quality motion graphics, captions, and B-Roll overlays — all from your transcript.
 
 > **Built with:** Electron + React 19 + TypeScript + Tailwind CSS + FFmpeg + GSAP + Gemini AI
+
+## 🏗️ System Architecture
+
+Motionify utilizes a hybrid architecture that combines the local performance of Electron with the multimodal reasoning of Google Gemini on Vertex AI.
+
+```mermaid
+graph TD
+    A[User Video/Audio] --> B(React Frontend)
+    B --> C{Gemini AI Engine}
+    
+    subgraph Google Cloud Platform
+        C --> D[Gemini 2.5 Flash]
+        D -- "Multimodal Transcription" --> E[Precise SRT Subtitles]
+        D -- "Creative Director" --> F[GSAP Animation Code]
+        D -- "Scene Orchestrator" --> G[Layout Timeline JSON]
+    end
+    
+    B --> H[Electron Main Process]
+    H --> I[FFmpeg Engine]
+    
+    E & F & G --> J[Motion Rendering Engine]
+    J --> I
+    I --> K[Final MP4 Export]
+    
+    style D fill:#4285F4,stroke:#fff,stroke-width:2px,color:#fff
+    style C fill:#34A853,stroke:#fff,stroke-width:2px,color:#fff
+```
+
+### How the Gemini Integration Works:
+1.  **Frontend (React)**: Captures user input (video/brief) and sends it to the `geminiService`.
+2.  **API Layer (Google GenAI SDK)**: Communicates securely with Google Cloud. We use `gemini-1.5-flash` for high-speed, cost-effective multimodal work.
+3.  **Multimodal Execution**:
+    - **Vision/Audio**: Gemini analyzes the uploaded video file to extract precise timestamps for subtitles.
+    - **Reasoning**: Based on the transcript, Gemini acts as a "Creative Director," generating custom GSAP (GreenSock) animation code specifically for the video's content.
+4.  **Backend (Electron/FFmpeg)**: The generated code is dynamically injected into an overlay layer. Our FFmpeg pipeline then captures these animations frame-by-frame and merges them with the original video.
+
+
 
 ---
 
@@ -79,8 +115,8 @@ VITE_PEXELS_API_KEY=your_key_here
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/reel-composer-ffmpeg.git
-cd reel-composer-ffmpeg
+git clone https://github.com/Noman654/Motionify
+cd motionify
 npm install
 ```
 
