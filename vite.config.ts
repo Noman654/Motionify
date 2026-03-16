@@ -12,6 +12,8 @@ function landingRedirectPlugin() {
       server.middlewares.use((req: any, _res: any, next: any) => {
         if (req.url === '/' || req.url === '/index') {
           req.url = '/landing.html';
+        } else if (req.url === '/app.html') {
+          req.url = '/index.html';
         }
         next();
       });

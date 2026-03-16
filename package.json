@@ -8,7 +8,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp public/landing.html dist/index.html",
+    "build": "vite build && mv dist/index.html dist/app.html && cp public/landing.html dist/index.html",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:3000 && ELECTRON_START_URL=http://localhost:3000 electron .\"",
     "electron:pack": "vite build && cross-env npm_config_platform=darwin npm_config_arch=x64 node node_modules/ffmpeg-static/install.js && cross-env npm_config_platform=darwin npm_config_arch=arm64 node node_modules/ffmpeg-static/install.js && electron-builder build --mac",
