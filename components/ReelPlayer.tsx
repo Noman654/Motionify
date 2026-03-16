@@ -378,6 +378,11 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('seeked', handleSeeked);
 
+    // If metadata already loaded (e.g. from cache or fast load), read it now
+    if (video.readyState >= 1 && video.duration) {
+      handleLoadedMetadata();
+    }
+
     return () => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
@@ -386,7 +391,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('seeked', handleSeeked);
     };
-  }, []);
+  }, [videoUrl]);
 
   // --- Handle external seek (from Timeline click) ---
   useEffect(() => {

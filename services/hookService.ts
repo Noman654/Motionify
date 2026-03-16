@@ -16,13 +16,13 @@ export const HOOK_MODES: { id: HookMode; name: string; icon: string; description
   { id: 'cinematic', name: 'Cinematic', icon: '🎭', description: 'Dark overlay with effects' },
 ];
 
-export const HOOK_DESIGNS: { id: HookDesign; name: string; icon: string }[] = [
-  { id: 'glassmorphism', name: 'Glass', icon: '🪟' },
-  { id: 'neo_brutalism', name: 'Brutal', icon: '🔲' },
-  { id: 'clay_morphism', name: 'Clay', icon: '🫧' },
-  { id: 'minimalism', name: 'Minimal', icon: '▫️' },
-  { id: 'liquid_glass', name: 'Liquid', icon: '💧' },
-  { id: 'skeuomorphism', name: 'Skeu', icon: '🎛️' },
+export const HOOK_DESIGNS: { id: HookDesign; name: string; icon: string; description: string }[] = [
+  { id: 'glassmorphism', name: 'Glass', icon: '🪟', description: 'Frosted blur, translucent cards' },
+  { id: 'neo_brutalism', name: 'Brutal', icon: '🔲', description: 'Bold borders, offset shadows' },
+  { id: 'clay_morphism', name: 'Clay', icon: '🫧', description: 'Soft 3D, puffy pastel cards' },
+  { id: 'minimalism', name: 'Minimal', icon: '▫️', description: 'Clean white, thin lines' },
+  { id: 'liquid_glass', name: 'Liquid', icon: '💧', description: 'Flowing gradients, chromatic' },
+  { id: 'skeuomorphism', name: 'Skeu', icon: '🎛️', description: 'Metal textures, embossed' },
 ];
 
 export interface HookVariant {

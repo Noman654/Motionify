@@ -153,62 +153,60 @@ export const HookLabPanel: React.FC<HookLabPanelProps> = ({
 
         {/* Mode Selector + Duration Bar */}
         {variants.length > 0 && (
-          <div className="px-5 py-2.5 border-b border-white/[0.04] bg-white/[0.01] space-y-2">
-            {/* Hook Mode Selector */}
-            <div className="flex gap-1.5">
-              {HOOK_MODES.map(mode => (
-                <button
-                  key={mode.id}
-                  onClick={() => setHookMode(mode.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                    hookMode === mode.id
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm shadow-amber-500/10'
-                      : 'bg-white/[0.03] text-gray-500 hover:text-gray-300 border border-transparent hover:border-white/10'
-                  }`}
-                  title={mode.description}
-                >
-                  <span>{mode.icon}</span>
-                  {mode.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Design Style Selector */}
-            <div className="flex gap-1 overflow-x-auto pb-0.5">
-              {HOOK_DESIGNS.map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => setHookDesign(d.id)}
-                  className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
-                    hookDesign === d.id
-                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                      : 'bg-white/[0.03] text-gray-500 hover:text-gray-300 border border-transparent hover:border-white/10'
-                  }`}
-                >
-                  <span>{d.icon}</span>
-                  {d.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Duration Selector */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                <Clock size={11} />
-                <span>Duration</span>
+          <div className="px-4 py-3 border-b border-white/[0.04] bg-white/[0.01]">
+            {/* Compact Settings Row */}
+            <div className="flex items-center gap-3">
+              {/* Mode — icon-only pills */}
+              <div className="flex gap-0.5 bg-black/20 p-0.5 rounded-lg border border-white/[0.04]">
+                {HOOK_MODES.map(mode => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setHookMode(mode.id)}
+                    className={`px-2 py-1.5 rounded-md text-xs transition-all ${
+                      hookMode === mode.id
+                        ? 'bg-amber-500/20 text-amber-400 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-300'
+                    }`}
+                    title={`${mode.name}: ${mode.description}`}
+                  >
+                    {mode.icon}
+                  </button>
+                ))}
               </div>
-              <div className="flex gap-1">
+
+              {/* Duration — compact pills */}
+              <div className="flex gap-0.5 bg-black/20 p-0.5 rounded-lg border border-white/[0.04]">
                 {DURATION_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     onClick={() => setHookDuration(opt.value)}
-                    className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${
+                    className={`px-2 py-1.5 rounded-md text-[10px] font-bold transition-all ${
                       hookDuration === opt.value
-                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                        : 'bg-white/5 text-gray-500 hover:text-gray-300 border border-transparent'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'text-gray-600 hover:text-gray-300'
                     }`}
                   >
                     {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1" />
+
+              {/* Design — icon-only scrollable row */}
+              <div className="flex gap-0.5 bg-black/20 p-0.5 rounded-lg border border-white/[0.04]">
+                {HOOK_DESIGNS.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => setHookDesign(d.id)}
+                    className={`px-1.5 py-1.5 rounded-md text-xs transition-all ${
+                      hookDesign === d.id
+                        ? 'bg-purple-500/20 text-purple-300 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-300'
+                    }`}
+                    title={d.name}
+                  >
+                    {d.icon}
                   </button>
                 ))}
               </div>

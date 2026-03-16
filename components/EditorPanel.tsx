@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratedContent, LayoutConfigStep, SRTItem } from '../types';
-import { Code, Layout, Settings, Save, Download, Music, ExternalLink, Copy, CheckCircle2, Sparkles, MessageSquare, Trash2, FileAudio, Key, Edit2, X, Check, Bot, Zap, Cpu, BrainCircuit, ShieldAlert, Lock, RefreshCw, Search, Upload, Image as ImageIcon, AlertTriangle, Type } from 'lucide-react';
+import { Code, Layout, Settings, Save, Download, Music, ExternalLink, Copy, CheckCircle2, Sparkles, MessageSquare, Trash2, FileAudio, Key, Edit2, X, Check, Bot, Zap, Cpu, BrainCircuit, ShieldAlert, Lock, RefreshCw, Search, Upload, Image as ImageIcon, AlertTriangle, Type, Palette, Loader2 } from 'lucide-react';
 import { extractWavFromVideo } from '../utils/audioHelpers';
 import { constructPrompt, constructPromptWithAssets } from '../utils/promptTemplates';
 import { validateGeminiConnection } from '../services/geminiService';
@@ -9,6 +9,7 @@ import { CaptionStylePicker } from './CaptionStylePicker';
 import { DEFAULT_STYLE_ID } from '../utils/captionStyles';
 import { BRollPanel } from './BRollPanel';
 import { BRollClip } from '../services/brollService';
+import { HOOK_DESIGNS } from '../services/hookService';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
@@ -51,6 +52,13 @@ interface EditorPanelProps {
   // B-Roll Props
   brollClips?: BRollClip[];
   onBRollClipsChange?: (clips: BRollClip[]) => void;
+  // Animation Design Style
+  animationDesign?: string;
+  onAnimationDesignChange?: (style: string) => void;
+  animationCache?: Record<string, GeneratedContent>;
+  onRegenerateInStyle?: (style: string) => void;
+  generatingStyle?: string | null;
+  styleError?: { style: string; message: string } | null;
 }
 
 export const EditorPanel: React.FC<EditorPanelProps> = ({
@@ -83,7 +91,13 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   captionStyleId = DEFAULT_STYLE_ID,
   onCaptionStyleChange,
   brollClips = [],
-  onBRollClipsChange
+  onBRollClipsChange,
+  animationDesign = '',
+  onAnimationDesignChange,
+  animationCache = {},
+  onRegenerateInStyle,
+  generatingStyle = null,
+  styleError = null
 }) => {
   const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio' | 'assets' | 'subtitles' | 'broll'>('config');
   const [localConfig, setLocalConfig] = useState(JSON.stringify(content.layoutConfig, null, 2));
@@ -389,6 +403,106 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       <div className="flex-1 overflow-auto p-3 relative">
         {(activeTab === 'config' || activeTab === 'ai_audio') && (
           <div className="space-y-4 text-sm">
+
+            {/* ─── Animation Style Switcher ─── */}
+            {onAnimationDesignChange && (
+              <div className="border border-white/[0.06] p-4 rounded-xl space-y-3 bg-white/[0.02]">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-white flex items-center gap-2 text-[11px] uppercase tracking-wider">
+                    <Palette size={13} className="text-purple-400" /> Animation Style
+                  </h3>
+                  {generatingStyle && (
+                    <span className="text-[9px] text-purple-400 font-medium flex items-center gap-1 animate-pulse">
+                      <Loader2 size={9} className="animate-spin" /> Generating...
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  {/* Default Style */}
+                  {(() => {
+                    const isGen = generatingStyle === 'default';
+                    const isCached = !!animationCache['default'];
+                    return (
+                      <button
+                        onClick={() => onAnimationDesignChange('')}
+                        disabled={!!generatingStyle}
+                        className={`relative text-left p-3 rounded-xl transition-all ${
+                          !animationDesign
+                            ? 'bg-cyan-500/10 border border-cyan-500/25 ring-1 ring-cyan-500/10'
+                            : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
+                        } ${generatingStyle ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isGen ? (
+                            <Loader2 size={14} className="animate-spin text-cyan-400" />
+                          ) : (
+                            <span className="text-sm">⚡</span>
+                          )}
+                          <div>
+                            <p className="text-[11px] font-bold text-white">Default</p>
+                            <p className="text-[9px] text-gray-500">Dark neon, pulse & glow</p>
+                          </div>
+                        </div>
+                        {isCached && !isGen && (
+                          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                        )}
+                      </button>
+                    );
+                  })()}
+
+                  {/* Design Styles */}
+                  {HOOK_DESIGNS.map(d => {
+                    const isCached = !!animationCache[d.id];
+                    const isActive = animationDesign === d.id;
+                    const isGen = generatingStyle === d.id;
+                    return (
+                      <button
+                        key={d.id}
+                        onClick={() => onAnimationDesignChange(d.id)}
+                        disabled={!!generatingStyle}
+                        className={`relative text-left p-3 rounded-xl transition-all ${
+                          isActive
+                            ? 'bg-purple-500/10 border border-purple-500/25 ring-1 ring-purple-500/10'
+                            : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
+                        } ${generatingStyle ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isGen ? (
+                            <Loader2 size={14} className="animate-spin text-purple-400" />
+                          ) : (
+                            <span className="text-sm">{d.icon}</span>
+                          )}
+                          <div>
+                            <p className="text-[11px] font-bold text-white">{d.name}</p>
+                            <p className="text-[9px] text-gray-500">{d.description}</p>
+                          </div>
+                        </div>
+                        {isCached && !isGen && (
+                          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-400 rounded-full" title="Cached — instant" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Error display */}
+                {styleError && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 animate-fade-in">
+                    <AlertTriangle size={12} className="text-red-400 shrink-0" />
+                    <p className="text-[10px] text-red-300 flex-1 leading-tight">
+                      Failed to generate <span className="font-bold">{styleError.style}</span>: {styleError.message}
+                    </p>
+                    <button
+                      onClick={() => onRegenerateInStyle && onRegenerateInStyle(styleError.style === 'default' ? '' : styleError.style)}
+                      className="text-[9px] text-red-400 hover:text-red-300 font-bold shrink-0 px-2 py-1 bg-red-500/10 rounded-md hover:bg-red-500/20 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Layout Config Editor */}
             <div className="accordion-section">
               <button

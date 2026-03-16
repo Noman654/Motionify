@@ -15,7 +15,7 @@ export const VisualTimeline: React.FC<VisualTimelineProps> = ({
     duration, currentTime, layoutConfig, srtData, onSeek, onSubtitleClick
 }) => {
     const sortedSteps = useMemo(() =>
-        [...(layoutConfig?.steps || [])].sort((a, b) => a.startTime - b.startTime),
+        [...(layoutConfig || [])].sort((a, b) => a.startTime - b.startTime),
         [layoutConfig]
     );
 

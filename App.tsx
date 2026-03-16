@@ -9,7 +9,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProjectLibrary } from './components/ProjectLibrary';
 import { SettingsModal } from './components/SettingsModal';
 import { VisualTimeline } from './components/VisualTimeline';
-import { TemplateGallery } from './components/TemplateGallery';
+
 import { parseSRT } from './utils/srtParser';
 import { AppState, GeneratedContent, SRTItem, MediaAsset } from './types';
 import { Edit3, AlertCircle, LayoutTemplate, CheckCircle2, Globe, Github, Linkedin, Instagram, Facebook, BookOpen, X, Sparkles, Smartphone, Monitor, ArrowLeft, Key, Folder, Save } from 'lucide-react';
@@ -17,9 +17,9 @@ import { generateReelContent } from './services/geminiService';
 import { APP_CONFIG } from './config';
 import { constructPrompt, EXAMPLE_SRT, EXAMPLE_TOPIC, EXAMPLE_HTML, EXAMPLE_JSON } from './utils/promptTemplates';
 import { saveProjectWithVideo, loadProjectWithVideo, SavedProject } from './utils/projectStorageWithVideo';
-import { AnimationTemplate } from './utils/templates';
+
 import { DEFAULT_STYLE_ID } from './utils/captionStyles';
-import { ActiveHook, HOOK_DESIGNS, HookDesign } from './services/hookService';
+import { ActiveHook, HOOK_DESIGNS } from './services/hookService';
 import { BRollClip } from './services/brollService';
 
 const App: React.FC = () => {
@@ -88,6 +88,77 @@ const App: React.FC = () => {
     const [activeHook, setActiveHook] = useState<ActiveHook | null>(null);
     const [brollClips, setBRollClips] = useState<BRollClip[]>([]);
     const [animationDesign, setAnimationDesign] = useState<string>('');
+    const [animationCache, setAnimationCache] = useState<Record<string, GeneratedContent>>({});
+    const [generatingStyle, setGeneratingStyle] = useState<string | null>(null);
+    const [styleError, setStyleError] = useState<{ style: string; message: string } | null>(null);
+
+    // Handle switching animation design style — cache current, load/generate new
+    const handleAnimationDesignSwitch = (newStyle: string) => {
+        // Save current content to cache before switching
+        if (generatedContent) {
+            const cacheKey = animationDesign || 'default';
+            setAnimationCache(prev => ({ ...prev, [cacheKey]: generatedContent }));
+        }
+
+        const loadKey = newStyle || 'default';
+        if (animationCache[loadKey]) {
+            // Load from cache — instant switch!
+            setGeneratedContent(animationCache[loadKey]);
+            setAnimationDesign(newStyle);
+        } else {
+            // Not cached — trigger generation
+            handleRegenerateInStyle(newStyle);
+        }
+    };
+
+    const handleRegenerateInStyle = async (style: string) => {
+        if (!videoFile || srtData.length === 0 || !apiKey.trim()) return;
+
+        const previousStyle = animationDesign;
+
+        // Save current content to cache
+        if (generatedContent) {
+            const cacheKey = animationDesign || 'default';
+            setAnimationCache(prev => ({ ...prev, [cacheKey]: generatedContent }));
+        }
+
+        setAnimationDesign(style);
+        setIsGenerating(true);
+        setGeneratingStyle(style || 'default');
+        setStyleError(null);
+        setError(null);
+
+        try {
+            const content = await generateReelContent(
+                srtTextRaw,
+                topicContext,
+                apiKey,
+                modelName,
+                undefined,
+                undefined,
+                isAudioOnly,
+                style || undefined
+            );
+            setGeneratedContent(content);
+            // Cache the newly generated content
+            const cacheKey = style || 'default';
+            setAnimationCache(prev => ({ ...prev, [cacheKey]: content }));
+        } catch (err: any) {
+            const errMsg = err.message || "Failed to generate";
+            setStyleError({ style: style || 'default', message: errMsg });
+            setError(errMsg);
+            // Revert to previous style
+            setAnimationDesign(previousStyle);
+            // Restore previous content from cache if available
+            const prevKey = previousStyle || 'default';
+            if (animationCache[prevKey]) {
+                setGeneratedContent(animationCache[prevKey]);
+            }
+        } finally {
+            setIsGenerating(false);
+            setGeneratingStyle(null);
+        }
+    };
 
     const handleSubtitleClick = (item: SRTItem) => {
         setEditingSubtitle(item);
@@ -260,7 +331,9 @@ const App: React.FC = () => {
                 animationDesign || undefined
             );
             setGeneratedContent(content);
-            // Clear refinement text after success? Optional. Keeping it allows user to iterate.
+            // Cache this generation
+            const cacheKey = animationDesign || 'default';
+            setAnimationCache(prev => ({ ...prev, [cacheKey]: content }));
         } catch (err: any) {
             setError(err.message || "Failed to generate content.");
         } finally {
@@ -325,6 +398,9 @@ const App: React.FC = () => {
                 // Normal flow
                 setGeneratedContent(content);
                 setAppState(AppState.EDITOR);
+                // Cache
+                const cacheKey = animationDesign || 'default';
+                setAnimationCache(prev => ({ ...prev, [cacheKey]: content }));
             }
         } catch (err: any) {
             console.warn("API Generation failed.", err);
@@ -368,14 +444,7 @@ const App: React.FC = () => {
         setAppState(AppState.EDITOR);
     };
 
-    const handleTemplateSelect = (template: AnimationTemplate) => {
-        setGeneratedContent({
-            html: template.html,
-            layoutConfig: template.layoutConfig,
-            reasoning: `Template: ${template.name}`
-        });
-        setAppState(AppState.EDITOR);
-    };
+
 
     const handleConfirmReplace = () => {
         if (pendingContent) {
@@ -558,42 +627,59 @@ const App: React.FC = () => {
                                                         </div>
                                                     </div>
 
-                                                    {/* Template Gallery — compact */}
+                                                    {/* ─── Animation Style Picker ─── */}
                                                     {!isGenerating && (
-                                                        <TemplateGallery onSelectTemplate={handleTemplateSelect} />
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <Sparkles size={12} className="text-purple-400" />
+                                                                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.1em]">Animation Style</span>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                {/* Default */}
+                                                                <button
+                                                                    onClick={() => setAnimationDesign('')}
+                                                                    className={`relative text-left p-3 rounded-xl transition-all ${
+                                                                        !animationDesign
+                                                                            ? 'bg-cyan-500/10 border border-cyan-500/25 ring-1 ring-cyan-500/10'
+                                                                            : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-2.5">
+                                                                        <span className="text-lg">⚡</span>
+                                                                        <div>
+                                                                            <p className="text-[11px] font-bold text-white">Default</p>
+                                                                            <p className="text-[9px] text-gray-500 leading-tight">Dark neon, pulse & glow</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </button>
+                                                                {/* Styles */}
+                                                                {HOOK_DESIGNS.map(d => (
+                                                                    <button
+                                                                        key={d.id}
+                                                                        onClick={() => setAnimationDesign(d.id)}
+                                                                        className={`relative text-left p-3 rounded-xl transition-all ${
+                                                                            animationDesign === d.id
+                                                                                ? 'bg-purple-500/10 border border-purple-500/25 ring-1 ring-purple-500/10'
+                                                                                : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2.5">
+                                                                            <span className="text-lg">{d.icon}</span>
+                                                                            <div>
+                                                                                <p className="text-[11px] font-bold text-white">{d.name}</p>
+                                                                                <p className="text-[9px] text-gray-500 leading-tight">{d.description}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
 
                                             {/* Pinned Generate button — always visible */}
                                             <div className="p-6 pt-3 border-t border-white/[0.04] bg-[var(--color-bg-surface-2)] relative z-10 shrink-0">
-                                                {/* Animation Design Style Selector */}
-                                                <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-hide">
-                                                    <button
-                                                        onClick={() => setAnimationDesign('')}
-                                                        className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
-                                                            !animationDesign
-                                                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                                                                : 'bg-white/[0.03] text-gray-500 hover:text-gray-300 border border-transparent hover:border-white/10'
-                                                        }`}
-                                                    >
-                                                        ⚡ Default
-                                                    </button>
-                                                    {HOOK_DESIGNS.map(d => (
-                                                        <button
-                                                            key={d.id}
-                                                            onClick={() => setAnimationDesign(d.id)}
-                                                            className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
-                                                                animationDesign === d.id
-                                                                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                                                    : 'bg-white/[0.03] text-gray-500 hover:text-gray-300 border border-transparent hover:border-white/10'
-                                                            }`}
-                                                        >
-                                                            <span>{d.icon}</span>
-                                                            {d.name}
-                                                        </button>
-                                                    ))}
-                                                </div>
 
                                                 <button
                                                     onClick={handleEnterStudio}
@@ -715,6 +801,12 @@ const App: React.FC = () => {
                                                     onCaptionStyleChange={setCaptionStyleId}
                                                     brollClips={brollClips}
                                                     onBRollClipsChange={setBRollClips}
+                                                    animationDesign={animationDesign}
+                                                    onAnimationDesignChange={handleAnimationDesignSwitch}
+                                                    animationCache={animationCache}
+                                                    onRegenerateInStyle={handleRegenerateInStyle}
+                                                    generatingStyle={generatingStyle}
+                                                    styleError={styleError}
                                                 />
                                             </div>
                                         )}
