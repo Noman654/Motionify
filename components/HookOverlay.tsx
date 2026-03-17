@@ -132,7 +132,7 @@ export const HookOverlay: React.FC<HookOverlayProps> = ({
                 fontSize: isP ? 50 : 90,
                 fontWeight: 900, lineHeight: 1,
                 color: design.accentColor || ac.c,
-                animation: 'hkNumDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                animation: 'hkNumDrop 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                 ...design.numberStyle,
               }}>
                 {bigNum}
@@ -151,7 +151,7 @@ export const HookOverlay: React.FC<HookOverlayProps> = ({
           {hookStyle === 'pain_point' && !bigNum && (
             <div style={{
               fontSize: isP ? 32 : 52,
-              animation: 'hkSlam 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              animation: 'hkSlam 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               marginBottom: isP ? 4 : 10,
               filter: `drop-shadow(0 0 20px rgba(${ac.rgb},0.4))`,
             }}>🎯</div>

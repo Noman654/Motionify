@@ -4,7 +4,7 @@ import { GeneratedContent } from "../types";
 import { constructPrompt } from "../utils/promptTemplates";
 import { fileToBase64, pcmToWav, extractAudioBlob } from "../utils/audioHelpers";
 
-export const validateGeminiConnection = async (apiKey: string, modelName: string): Promise<boolean> => {
+export const validateGeminiConnection = async (apiKey: string, modelName: string): Promise<boolean | string> => {
   if (!apiKey) return false;
   const ai = new GoogleGenAI({ apiKey });
   try {
@@ -14,9 +14,14 @@ export const validateGeminiConnection = async (apiKey: string, modelName: string
       contents: "Test connection.",
     });
     return true;
-  } catch (e) {
+  } catch (e: any) {
     console.error("API Key Validation Failed:", e);
-    return false;
+    // Return specific error messages based on the caught error
+    if (e.message?.includes("404")) return "Model not found. Please check API availability.";
+    if (e.message?.includes("400")) return "Bad Request. Invalid API Key or model.";
+    if (e.message?.includes("429")) return "Rate limited. Please wait and try again.";
+    if (e.message?.includes("API key")) return "Invalid API Key.";
+    return `Connection failed: ${e.message || "Unknown error"}`;
   }
 };
 

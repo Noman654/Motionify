@@ -99,7 +99,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   generatingStyle = null,
   styleError = null
 }) => {
-  const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio' | 'assets' | 'subtitles' | 'broll'>('config');
+  const [activeTab, setActiveTab] = useState<'html' | 'config' | 'ai_audio' | 'assets' | 'subtitles' | 'broll' | 'advanced'>('config');
+  const [isLayoutExpanded, setIsLayoutExpanded] = useState(false);
   const [localConfig, setLocalConfig] = useState(JSON.stringify(content.layoutConfig, null, 2));
   const [localHtml, setLocalHtml] = useState(content.html);
   const [offlineHtml, setOfflineHtml] = useState<string | null>(null); // New state for inlined code
@@ -190,17 +191,17 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     setIsValidatingKey(true);
     setKeyError(null);
 
-    const isValid = await validateGeminiConnection(tempKey, tempModel);
+    const result = await validateGeminiConnection(tempKey, tempModel);
 
     setIsValidatingKey(false);
 
-    if (isValid) {
+    if (result === true) {
       setApiKey(tempKey);
       setModelName(tempModel);
       setTimeout(() => onSaveApiKey(), 0);
       setIsEditingKey(false);
     } else {
-      setKeyError("Connection failed. Check key/model.");
+      setKeyError(typeof result === 'string' ? result : "Connection failed. Check key/model.");
     }
   };
 
@@ -397,6 +398,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           >
             <ImageIcon size={13} /> <span>Media</span>
           </button>
+          <button
+            onClick={() => setActiveTab('advanced')}
+            className={`flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg transition-all duration-200 ${activeTab === 'advanced' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Settings size={13} /> <span className="hidden sm:inline">Advanced</span>
+          </button>
         </div>
       </div>
 
@@ -409,10 +416,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               <div className="border border-white/[0.06] p-4 rounded-xl space-y-3 bg-white/[0.02]">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-white flex items-center gap-2 text-[11px] uppercase tracking-wider">
-                    <Palette size={13} className="text-purple-400" /> Animation Style
+                    <Palette size={13} className="text-orange-400" /> Animation Style
                   </h3>
                   {generatingStyle && (
-                    <span className="text-[9px] text-purple-400 font-medium flex items-center gap-1 animate-pulse">
+                    <span className="text-[9px] text-orange-400 font-medium flex items-center gap-1 animate-pulse">
                       <Loader2 size={9} className="animate-spin" /> Generating...
                     </span>
                   )}
@@ -463,13 +470,13 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         disabled={!!generatingStyle}
                         className={`relative text-left p-3 rounded-xl transition-all ${
                           isActive
-                            ? 'bg-purple-500/10 border border-purple-500/25 ring-1 ring-purple-500/10'
+                            ? 'bg-orange-500/10 border border-orange-500/25 ring-1 ring-orange-500/10'
                             : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
                         } ${generatingStyle ? 'opacity-60 cursor-not-allowed' : ''}`}
                       >
                         <div className="flex items-center gap-2">
                           {isGen ? (
-                            <Loader2 size={14} className="animate-spin text-purple-400" />
+                            <Loader2 size={14} className="animate-spin text-orange-400" />
                           ) : (
                             <span className="text-sm">{d.icon}</span>
                           )}
@@ -503,43 +510,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 )}
               </div>
             )}
-            {/* Layout Config Editor */}
-            <div className="accordion-section">
-              <button
-                onClick={() => setActiveTab(activeTab === 'config' ? 'ai_audio' : 'config')}
-                className="accordion-header w-full"
-              >
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                  <Layout size={12} /> Layout JSON
-                </span>
-                <span className="text-[10px] text-gray-600">{activeTab === 'config' ? '▼' : '▶'}</span>
-              </button>
-              {activeTab === 'config' && (
-                <div className="visual-editor-container border-t border-white/[0.04] bg-[var(--color-bg-deep)]" style={{ maxHeight: '280px', overflow: 'auto' }}>
-                  <div className="prism-code">
-                    <Editor
-                      value={localConfig}
-                      onValueChange={setLocalConfig}
-                      highlight={highlightJSON}
-                      padding={16}
-                      style={{
-                        minHeight: '100%',
-                        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
-                        fontSize: 12,
-                        lineHeight: 1.6,
-                        background: 'transparent'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Visual Context / Refinement Instructions */}
-            <div className={`p-4 rounded-xl space-y-3 transition-all relative overflow-hidden ${hasContent ? 'border border-purple-500/20 bg-purple-500/5' : 'border border-white/[0.06] bg-white/[0.02]'}`}>
+            <div className={`p-4 rounded-xl space-y-3 transition-all relative overflow-hidden ${hasContent ? 'border border-orange-500/20 bg-orange-500/5' : 'border border-white/[0.06] bg-white/[0.02]'}`}>
               <div className="flex justify-between items-center relative z-10">
                 <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
-                  {hasContent ? <><RefreshCw size={14} className="text-purple-400" /> Refine Scene</> : <><Edit2 size={14} className="text-gray-400" /> Visual Context</>}
+                  {hasContent ? <><RefreshCw size={14} className="text-orange-400" /> Refine Scene</> : <><Edit2 size={14} className="text-gray-400" /> Visual Context</>}
                 </h3>
               </div>
 
@@ -561,16 +536,93 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               </div>
             </div>
 
-            {/* Internal Generator & Settings */}
+                        {/* Audio & Music (Combined) */}
+            <div className="border border-white/[0.06] p-4 rounded-xl space-y-4 bg-white/[0.02]">
+              <h3 className="font-bold text-white flex items-center gap-2 text-[11px] uppercase tracking-wider">
+                <Music size={12} className="text-orange-400" /> Audio & Music
+              </h3>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={extractAndDownloadAudio}
+                  disabled={isExtracting}
+                  className="w-full flex items-center justify-center gap-2 glass-button py-2.5 rounded-lg text-white text-xs font-medium hover:bg-white/10"
+                >
+                  {isExtracting ? (
+                    <span className="animate-pulse">Extracting...</span>
+                  ) : (
+                    <>
+                      <Download size={14} /> Extract WAV from Video
+                    </>
+                  )}
+                </button>
+
+                <div className="flex justify-between gap-2 mt-2">
+                  <a href="https://transcri.io/en/subtitle-generator/srt" target="_blank" rel="noreferrer" className="flex-1 glass-button py-2 rounded-lg text-xs text-center text-gray-300 hover:text-white">
+                    Transcri.io
+                  </a>
+                  <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="flex-1 glass-button py-2 rounded-lg text-xs text-center text-gray-300 hover:text-white">
+                    Adobe Enhance
+                  </a>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-white/5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-gray-400">Background Music Volume</span>
+                  <span className="text-[10px] text-gray-600 font-mono">{(bgMusicVolume * 100).toFixed(0)}%</span>
+                </div>
+
+                {bgMusicName ? (
+                  <div className="flex items-center justify-between bg-black/30 border border-white/5 rounded-lg p-2.5">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <FileAudio size={13} className="text-orange-400 flex-shrink-0" />
+                      <span className="text-xs text-white truncate">{bgMusicName}</span>
+                    </div>
+                    <button
+                      onClick={handleRemoveMusic}
+                      className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded transition-colors"
+                      title="Remove Music"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-2 w-full p-2.5 border border-dashed border-white/10 rounded-lg text-xs text-gray-500 hover:text-white hover:border-white/20 cursor-pointer transition-colors hover:bg-white/[0.03]">
+                    <Music size={13} /> Upload Music
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleMusicUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+
+                <input
+                  type="range"
+                  min="0" max="1" step="0.05"
+                  value={bgMusicVolume}
+                  onChange={(e) => onBgVolumeChange(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+                {activeTab === 'advanced' && (
+          <div className="space-y-4 text-sm">
+{/* Internal Generator & Settings */}
             <div className="border border-white/[0.06] p-4 rounded-xl space-y-3 relative overflow-hidden bg-white/[0.02]">
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl"></div>
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl"></div>
               <div className="absolute top-4 right-4 p-2 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
-                <Sparkles size={24} className="text-purple-400/20 group-hover:text-purple-400/40 transform rotate-12" />
+                <Sparkles size={24} className="text-orange-400/20 group-hover:text-orange-400/40 transform rotate-12" />
               </div>
 
               <div className="flex items-center justify-between relative z-10">
-                <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider text-purple-200">
-                  <Sparkles size={14} className="text-purple-400" /> Internal Generator
+                <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider text-orange-200">
+                  <Sparkles size={14} className="text-orange-400" /> Internal Generator
                 </h3>
                 {!isEditingKey && (
                   <button
@@ -606,7 +658,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       : 'btn-primary'
                       }`}
                   >
-                    {isGenerating ? <div className="w-4 h-4 border-2 border-purple-400/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={14} />}
+                    {isGenerating ? <div className="w-4 h-4 border-2 border-orange-400/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={14} />}
                     <span className="relative z-10">{hasContent ? "Update Scene" : "Generate Scene"}</span>
                   </button>
                 </div>
@@ -616,7 +668,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <label className="text-[10px] uppercase text-gray-500 font-semibold">API Key</label>
-                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1">
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-orange-400 hover:text-orange-300 flex items-center gap-1">
                         Get Key <ExternalLink size={8} />
                       </a>
                     </div>
@@ -634,12 +686,15 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     <select
                       value={tempModel}
                       onChange={(e) => setTempModel(e.target.value)}
-                      className="w-full input-base bg-black/60 px-3 py-2.5 text-xs rounded-lg appearance-none"
                     >
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                       <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                      <option value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash-Lite</option>
                       <option value="gemini-2.0-pro-exp">Gemini 2.0 Pro (Exp)</option>
                       <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                       <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B</option>
                       <option value="custom">Custom...</option>
                     </select>
                     {tempModel === 'custom' && (
@@ -676,80 +731,39 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
 
 
-            {/* Audio Tools */}
-            <div className="glass-panel p-4 rounded-xl space-y-3">
-              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
-                <Music size={14} className="text-pink-400" /> Audio Tools
-              </h3>
-
+            {/* Layout Config Editor */}
+            <div className="accordion-section">
               <button
-                onClick={extractAndDownloadAudio}
-                disabled={isExtracting}
-                className="w-full flex items-center justify-center gap-2 glass-button py-2.5 rounded-lg text-white text-xs font-medium hover:bg-white/10"
+                onClick={() => setIsLayoutExpanded(!isLayoutExpanded)}
+                className="accordion-header w-full"
               >
-                {isExtracting ? (
-                  <span className="animate-pulse">Extracting...</span>
-                ) : (
-                  <>
-                    <Download size={14} /> Extract WAV from Video
-                  </>
-                )}
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Layout size={12} /> Layout JSON
+                </span>
+                <span className="text-[10px] text-gray-600">{isLayoutExpanded ? '▼' : '▶'}</span>
               </button>
-
-              <div className="flex justify-between gap-2 mt-2">
-                <a href="https://transcri.io/en/subtitle-generator/srt" target="_blank" rel="noreferrer" className="flex-1 glass-button py-2 rounded-lg text-xs text-center text-gray-300 hover:text-white">
-                  Transcri.io
-                </a>
-                <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="flex-1 glass-button py-2 rounded-lg text-xs text-center text-gray-300 hover:text-white">
-                  Adobe Enhance
-                </a>
-              </div>
-            </div>
-
-            {/* Background Music */}
-            <div className="border border-white/[0.06] p-4 rounded-xl space-y-3 bg-white/[0.02]">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-2 text-[11px] uppercase tracking-wider">
-                  <Music size={12} className="text-fuchsia-400" /> Background Music
-                </h3>
-                <span className="text-[10px] text-gray-600 font-mono">{(bgMusicVolume * 100).toFixed(0)}%</span>
-              </div>
-
-              {bgMusicName ? (
-                <div className="flex items-center justify-between bg-black/30 border border-white/5 rounded-lg p-2.5">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <FileAudio size={13} className="text-fuchsia-400 flex-shrink-0" />
-                    <span className="text-xs text-white truncate">{bgMusicName}</span>
+              {isLayoutExpanded && (
+                <div className="visual-editor-container border-t border-white/[0.04] bg-[var(--color-bg-deep)]" style={{ maxHeight: '280px', overflow: 'auto' }}>
+                  <div className="prism-code">
+                    <Editor
+                      value={localConfig}
+                      onValueChange={setLocalConfig}
+                      highlight={highlightJSON}
+                      padding={16}
+                      style={{
+                        minHeight: '100%',
+                        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+                        fontSize: 12,
+                        lineHeight: 1.6,
+                        background: 'transparent'
+                      }}
+                    />
                   </div>
-                  <button
-                    onClick={handleRemoveMusic}
-                    className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded transition-colors"
-                    title="Remove Music"
-                  >
-                    <Trash2 size={11} />
-                  </button>
                 </div>
-              ) : (
-                <label className="flex items-center justify-center gap-2 w-full p-2.5 border border-dashed border-white/10 rounded-lg text-xs text-gray-500 hover:text-white hover:border-white/20 cursor-pointer transition-colors hover:bg-white/[0.03]">
-                  <Music size={13} /> Upload Music
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    onChange={handleMusicUpload}
-                    className="hidden"
-                  />
-                </label>
               )}
-
-              <input
-                type="range"
-                min="0" max="1" step="0.05"
-                value={bgMusicVolume}
-                onChange={(e) => onBgVolumeChange(parseFloat(e.target.value))}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
-              />
             </div>
 
+            
           </div>
         )}
 
@@ -792,7 +806,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {viewMode === 'original' && (
                 <button
                   onClick={() => setLocalHtml(formatHtml(localHtml))}
-                  className="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-md text-[11px] flex items-center gap-1.5 transition-colors border border-purple-500/20"
+                  className="px-2.5 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 rounded-md text-[11px] flex items-center gap-1.5 transition-colors border border-orange-500/20"
                   title="Format HTML"
                 >
                   <Code size={12} />
@@ -819,7 +833,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 />
                 <button
                   onClick={handleSearch}
-                  className="px-3 py-1 bg-purple-600/30 hover:bg-purple-600/40 text-purple-300 rounded-md text-xs transition-colors font-medium border border-purple-500/20"
+                  className="px-3 py-1 bg-orange-600/30 hover:bg-orange-600/40 text-orange-300 rounded-md text-xs transition-colors font-medium border border-orange-500/20"
                 >
                   Find
                 </button>
@@ -1020,8 +1034,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 }}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
-              <div className="p-3 bg-purple-500/20 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                <Upload size={24} className="text-purple-400" />
+              <div className="p-3 bg-orange-500/20 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                <Upload size={24} className="text-orange-400" />
               </div>
               <p className="text-sm font-medium text-gray-300">Click or Drag to Upload Assets</p>
               <p className="text-xs text-gray-500 mt-1">Images (PNG, JPG) & Videos (MP4, WebM)</p>

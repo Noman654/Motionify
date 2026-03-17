@@ -201,7 +201,7 @@ export const HookLabPanel: React.FC<HookLabPanelProps> = ({
                     onClick={() => setHookDesign(d.id)}
                     className={`px-1.5 py-1.5 rounded-md text-xs transition-all ${
                       hookDesign === d.id
-                        ? 'bg-purple-500/20 text-purple-300 shadow-sm'
+                        ? 'bg-orange-500/20 text-orange-300 shadow-sm'
                         : 'text-gray-600 hover:text-gray-300'
                     }`}
                     title={d.name}
@@ -300,7 +300,7 @@ export const HookLabPanel: React.FC<HookLabPanelProps> = ({
                       {HOOK_MODES.find(m => m.id === hookMode)?.icon} {HOOK_MODES.find(m => m.id === hookMode)?.name}
                     </span>
                     {variant.aiImageUrl && (
-                      <span className="text-[8px] px-1 py-0.5 bg-purple-500/20 text-purple-400 rounded font-bold">AI IMG</span>
+                      <span className="text-[8px] px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded font-bold">AI IMG</span>
                     )}
                     {variant.backgroundVideoUrl && !variant.aiImageUrl && (
                       <span className="text-[8px] px-1 py-0.5 bg-cyan-500/20 text-cyan-400 rounded font-bold">🎬 BG</span>
@@ -371,7 +371,7 @@ export const HookLabPanel: React.FC<HookLabPanelProps> = ({
                     <button
                       onClick={() => handleGenerateImage(variant)}
                       disabled={isGenImage}
-                      className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-[10px] font-bold bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/15 transition-all disabled:opacity-50"
+                      className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-[10px] font-bold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/15 transition-all disabled:opacity-50"
                       title="Generate AI background image"
                     >
                       {isGenImage ? <Loader2 size={10} className="animate-spin" /> : <Image size={10} />}
@@ -398,7 +398,7 @@ export const HookLabPanel: React.FC<HookLabPanelProps> = ({
           {variants.length > 0 && !isGenerating && (
             <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl">
               <p className="text-[10px] text-gray-600 leading-relaxed">
-                <span className="text-amber-400 font-bold">💡 Tip:</span> Switch between <strong className="text-gray-400">Speaker</strong> (text over your video), <strong className="text-gray-400">AI Visual</strong> (generated backgrounds), and <strong className="text-gray-400">Cinematic</strong> (dark overlay) modes. Click <strong className="text-purple-400">AI BG</strong> to generate a custom background image.
+                <span className="text-amber-400 font-bold">💡 Tip:</span> Switch between <strong className="text-gray-400">Speaker</strong> (text over your video), <strong className="text-gray-400">AI Visual</strong> (generated backgrounds), and <strong className="text-gray-400">Cinematic</strong> (dark overlay) modes. Click <strong className="text-orange-400">AI BG</strong> to generate a custom background image.
               </p>
             </div>
           )}

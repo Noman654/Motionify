@@ -1,16 +1,16 @@
 
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ReelPlayer } from './components/ReelPlayer';
 import { EditorPanel } from './components/EditorPanel';
+import { LoadingMessage } from './components/LoadingMessage';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ProjectLibrary } from './components/ProjectLibrary';
 import { SettingsModal } from './components/SettingsModal';
 import { VisualTimeline } from './components/VisualTimeline';
 import { FeedbackButton } from './components/FeedbackButton';
 
+import { useAudio } from './hooks/useAudio';
 import { parseSRT } from './utils/srtParser';
 import { AppState, GeneratedContent, SRTItem, MediaAsset } from './types';
 import { Edit3, AlertCircle, LayoutTemplate, CheckCircle2, Globe, Github, Linkedin, Instagram, Facebook, BookOpen, X, Sparkles, Smartphone, Monitor, ArrowLeft, Key, Folder, Save } from 'lucide-react';
@@ -22,8 +22,10 @@ import { saveProjectWithVideo, loadProjectWithVideo, SavedProject } from './util
 import { DEFAULT_STYLE_ID } from './utils/captionStyles';
 import { ActiveHook, HOOK_DESIGNS } from './services/hookService';
 import { BRollClip } from './services/brollService';
+import { useToast } from './components/ToastContext';
 
 const App: React.FC = () => {
+    const { showToast, showConfirm } = useToast();
     const [appState, setAppState] = useState<AppState>(() => {
         // Check for manual mode opt-out first
         const manualModePref = localStorage.getItem('manual_mode_opt_out');
@@ -71,9 +73,7 @@ const App: React.FC = () => {
     const [externalSeekTime, setExternalSeekTime] = useState<number | null>(null);
 
     // Audio State
-    const [bgMusicFile, setBgMusicFile] = useState<File | null>(null);
-    const [bgMusicUrl, setBgMusicUrl] = useState<string | undefined>(undefined);
-    const [bgMusicVolume, setBgMusicVolume] = useState(0.2);
+    const { bgMusicFile, setBgMusicFile, bgMusicUrl, setBgMusicUrl, bgMusicVolume, setBgMusicVolume } = useAudio(0.2);
 
     // Asset State
     const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -468,7 +468,7 @@ const App: React.FC = () => {
         <>
             {/* Mobile/Tablet Blocking Overlay */}
             <div className="fixed inset-0 z-[9999] bg-[var(--color-bg-deep)] flex flex-col items-center justify-center p-8 text-center md:hidden">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center mb-6 shadow-xl shadow-purple-900/40 animate-glow">
+                <div className="w-16 h-16 rounded-2xl bg-[var(--color-accent-primary)] flex items-center justify-center mb-6 shadow-xl shadow-orange-900/30 animate-glow">
                     <Sparkles size={28} className="text-white" />
                 </div>
                 <h2 className="text-xl font-display font-bold text-white mb-2">
@@ -496,7 +496,7 @@ const App: React.FC = () => {
                         {!isFullScreen && appState !== AppState.UPLOAD && (
                             <header className="relative mt-4 mb-3 mx-auto w-[92%] max-w-6xl h-14 shrink-0 rounded-2xl border border-white/[0.06] flex items-center justify-between px-5 bg-[var(--color-bg-surface-1)]/80 backdrop-blur-xl z-50 shadow-xl shadow-black/40 pointer-events-none">
                                 <div className="pointer-events-auto flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/20 animate-glow">
+                                    <div className="w-8 h-8 rounded-xl bg-[var(--color-accent-primary)] flex items-center justify-center shadow-lg shadow-orange-500/15 animate-glow">
                                         <Sparkles size={15} className="text-white" />
                                     </div>
                                     <div className="flex flex-col">
@@ -528,9 +528,9 @@ const App: React.FC = () => {
                                     </div>
 
                                     <button
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (generatedContent) {
-                                                const confirmed = confirm('Start new project? Unsaved changes will be lost.');
+                                                const confirmed = await showConfirm('Start new project? Unsaved changes will be lost.');
                                                 if (!confirmed) return;
                                             }
                                             setAppState(AppState.UPLOAD);
@@ -581,21 +581,21 @@ const App: React.FC = () => {
                                 <div className="flex flex-col h-full overflow-hidden relative state-enter">
                                     {/* Ambient Light */}
                                     <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/8 rounded-full blur-[120px] animate-breathe"></div>
-                                        <div className="absolute top-[-10%] right-[10%] w-[400px] h-[400px] bg-violet-600/5 rounded-full blur-[100px]"></div>
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-500/8 rounded-full blur-[120px] animate-breathe"></div>
+                                        <div className="absolute top-[-10%] right-[10%] w-[400px] h-[400px] bg-red-600/5 rounded-full blur-[100px]"></div>
                                     </div>
 
                                     <div className="flex-1 flex flex-col items-center justify-center p-8 z-10 relative">
                                         <div className="glass-panel-elevated max-w-2xl w-full rounded-[2rem] shadow-2xl animate-scale-in relative overflow-hidden group flex flex-col" style={{ maxHeight: 'calc(100vh - 180px)' }}>
                                             {/* Top edge gradient */}
-                                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-400/20 to-transparent"></div>
-                                            <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-500/15 blur-[80px] group-hover:bg-purple-500/20 transition-all duration-700"></div>
+                                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-orange-400/20 to-transparent"></div>
+                                            <div className="absolute -top-24 -left-24 w-48 h-48 bg-orange-500/10 blur-[80px] group-hover:bg-orange-500/15 transition-all duration-700"></div>
 
                                             {/* Scrollable content */}
                                             <div className="flex-1 overflow-y-auto p-10 pb-4">
                                                 <div className="text-center space-y-4 mb-8 relative z-10">
-                                                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 mb-2 border border-white/5 shadow-xl animate-glow">
-                                                        <Sparkles size={28} className="text-purple-400" />
+                                                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/15 mb-2 border border-white/5 shadow-xl animate-glow">
+                                                        <Sparkles size={28} className="text-orange-400" />
                                                     </div>
                                                     <div>
                                                         <h2 className="text-4xl font-display font-bold tracking-tight text-white mb-2">
@@ -632,7 +632,7 @@ const App: React.FC = () => {
                                                     {!isGenerating && (
                                                         <div className="space-y-3">
                                                             <div className="flex items-center gap-2">
-                                                                <Sparkles size={12} className="text-purple-400" />
+                                                                <Sparkles size={12} className="text-orange-400" />
                                                                 <span className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.1em]">Animation Style</span>
                                                             </div>
                                                             <div className="grid grid-cols-2 gap-2">
@@ -641,7 +641,7 @@ const App: React.FC = () => {
                                                                     onClick={() => setAnimationDesign('')}
                                                                     className={`relative text-left p-3 rounded-xl transition-all ${
                                                                         !animationDesign
-                                                                            ? 'bg-cyan-500/10 border border-cyan-500/25 ring-1 ring-cyan-500/10'
+                                                                            ? 'bg-orange-500/10 border border-orange-500/25 ring-1 ring-orange-500/10'
                                                                             : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
                                                                     }`}
                                                                 >
@@ -660,7 +660,7 @@ const App: React.FC = () => {
                                                                         onClick={() => setAnimationDesign(d.id)}
                                                                         className={`relative text-left p-3 rounded-xl transition-all ${
                                                                             animationDesign === d.id
-                                                                                ? 'bg-purple-500/10 border border-purple-500/25 ring-1 ring-purple-500/10'
+                                                                                ? 'bg-orange-500/10 border border-orange-500/25 ring-1 ring-orange-500/10'
                                                                                 : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/15 hover:bg-white/[0.04]'
                                                                         }`}
                                                                     >
@@ -692,8 +692,8 @@ const App: React.FC = () => {
                                                 >
                                                     {isGenerating ? (
                                                         <>
-                                                            <div className="w-5 h-5 border-2 border-purple-400/30 border-t-white rounded-full animate-spin"></div>
-                                                            <span>Generating scene...</span>
+                                                            <div className="w-5 h-5 border-2 border-orange-400/30 border-t-white rounded-full animate-spin"></div>
+                                                            <LoadingMessage />
                                                         </>
                                                     ) : (
                                                         <>
@@ -833,7 +833,7 @@ const App: React.FC = () => {
                         </main>
 
                         {/* Snackbar */}
-                        <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 glass-panel-elevated px-5 py-3 rounded-xl font-semibold text-sm z-[100] transition-all duration-300 flex items-center gap-2 border-l-2 border-emerald-500 ${showSnackbar ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
+                        <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 glass-panel-elevated px-5 py-3 rounded-xl font-semibold text-sm z-[100] transition-all duration-200 flex items-center gap-2 border-l-2 border-emerald-500 ${showSnackbar ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
                             <CheckCircle2 size={16} className="text-emerald-400" />
                             Prompt copied to clipboard
                         </div>
@@ -844,7 +844,7 @@ const App: React.FC = () => {
                                 <div className="glass-panel-elevated max-w-md w-full p-6 rounded-2xl animate-scale-in">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                                            <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
                                                 <Sparkles size={18} />
                                             </div>
                                             <div>
@@ -1017,9 +1017,9 @@ const App: React.FC = () => {
                         // Show result
                         setTimeout(() => {
                             if (loadedVideo) {
-                                alert('✅ Project loaded with video!\n\nEverything works exactly as before!');
+                                showToast('Project loaded with video! Everything works exactly as before.', 'success');
                             } else {
-                                alert('⚠️ Project loaded but no video was saved');
+                                showToast('Project loaded but no video was saved', 'error');
                             }
                         }, 300);
                     }}

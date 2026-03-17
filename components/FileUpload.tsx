@@ -1,9 +1,9 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, FileVideo, FileText, ArrowRight, Download, ExternalLink, Music, Wand2, Mic, Play, FileAudio, Disc, Video, Clapperboard, Sparkles, CheckSquare, Edit2, Save, X, Headphones, Trash2, ArrowLeft, Folder, Gem, ChevronDown } from 'lucide-react';
 import { extractWavFromVideo } from '../utils/audioHelpers';
 import { generateSRT, generateTTS } from '../services/geminiService';
+import { useToast } from './ToastContext';
 
 interface FileUploadProps {
     onFilesSelected: (videoFile: File, srtFile: File, isAudioOnly: boolean) => void;
@@ -13,6 +13,7 @@ interface FileUploadProps {
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey, onBack, onOpenProjects }) => {
+    const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<'video' | 'audio'>('video');
 
     // --- Split State for SRT ---
@@ -104,7 +105,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         try {
             await extractWavFromVideo(videoFile);
         } catch (e) {
-            alert("Failed to extract audio.");
+            showToast("Failed to extract audio.", "error");
         } finally {
             setIsExtracting(false);
         }
@@ -117,11 +118,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         else sourceFile = generatedAudioFile || audioFile;
 
         if (!sourceFile) {
-            alert("Please upload/generate media first.");
+            showToast("Please upload/generate media first.", "error");
             return;
         }
         if (!apiKey) {
-            alert("Please configure your API Key in settings first.");
+            showToast("Please configure your API Key in settings first.", "error");
             return;
         }
 
@@ -136,7 +137,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
         } catch (err: any) {
             if (!generationActiveRef.current) return;
             console.error(err);
-            alert(`Auto-generation failed: ${err.message || "Unknown error occurred"}`);
+            showToast(`Auto-generation failed: ${err.message || "Unknown error occurred"}`, "error");
         } finally {
             if (generationActiveRef.current) {
                 setIsAutoGeneratingSRT(false);
@@ -171,7 +172,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
             setAudioSrt(null);
         } catch (err) {
             console.error(err);
-            alert("Failed to generate audio. See console for details.");
+            showToast("Failed to generate audio. See console for details.", "error");
         } finally {
             setIsGeneratingAudio(false);
         }
@@ -290,7 +291,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                             disabled={!hasSource || isAutoGeneratingSRT}
                                             className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border font-semibold text-sm transition-all ${!hasSource
                                                 ? 'border-white/5 text-gray-600 cursor-not-allowed bg-white/[0.02]'
-                                                : 'border-purple-500/30 bg-purple-500/8 text-purple-300 hover:bg-purple-500/15 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-900/20'
+                                                : 'border-orange-500/30 bg-orange-500/8 text-orange-300 hover:bg-orange-500/15 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-900/20'
                                                 }`}
                                         >
                                             {isAutoGeneratingSRT ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Wand2 size={14} />}
@@ -357,12 +358,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                         {/* Step Progress */}
                         <div className="flex items-center gap-3 max-w-md mx-auto">
                             <div className="flex items-center gap-1.5">
-                                <div className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-bold flex items-center justify-center border border-purple-500/30">✓</div>
+                                <div className="w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold flex items-center justify-center border border-orange-500/30">✓</div>
                                 <span className="text-xs text-gray-500">Connect</span>
                             </div>
-                            <div className="flex-1 h-px bg-purple-500/20" />
+                            <div className="flex-1 h-px bg-orange-500/20" />
                             <div className="flex items-center gap-1.5">
-                                <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg shadow-purple-500/30">2</div>
+                                <div className="w-6 h-6 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg shadow-orange-500/30">2</div>
                                 <span className="text-xs font-medium text-white">Upload</span>
                             </div>
                             <div className="flex-1 h-px bg-white/10" />
@@ -424,8 +425,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                         <Clapperboard size={13} /> Source Footage
                                     </h3>
                                     <div
-                                        className={`border rounded-2xl p-6 flex flex-col items-center justify-center transition-all h-64 relative overflow-hidden group ${isDragging ? 'border-purple-400/50 bg-purple-900/10 scale-[1.01]' :
-                                                videoFile ? 'border-purple-500/30 bg-purple-950/10' : 'border-white/8 bg-white/[0.02] hover:border-white/12 hover:bg-white/[0.03]'
+                                        className={`border rounded-2xl p-6 flex flex-col items-center justify-center transition-all h-64 relative overflow-hidden group ${isDragging ? 'border-orange-400/50 bg-orange-900/10 scale-[1.01]' :
+                                                videoFile ? 'border-orange-500/30 bg-orange-950/10' : 'border-white/8 bg-white/[0.02] hover:border-white/12 hover:bg-white/[0.03]'
                                             }`}
                                         onDragOver={handleDragOver}
                                         onDragLeave={handleDragLeave}
@@ -443,7 +444,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                                     <X size={14} />
                                                 </button>
 
-                                                <div className="p-3.5 rounded-xl bg-purple-500/10 text-purple-400 mb-3">
+                                                <div className="p-3.5 rounded-xl bg-orange-500/10 text-orange-400 mb-3">
                                                     <FileVideo size={28} />
                                                 </div>
                                                 <div className="text-center px-4">
@@ -457,7 +458,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                             </div>
                                         ) : (
                                             <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full h-full justify-center z-10">
-                                                <div className="p-4 rounded-xl bg-white/[0.04] text-purple-400 group-hover:scale-105 transition-transform duration-300 border border-white/5">
+                                                <div className="p-4 rounded-xl bg-white/[0.04] text-orange-400 group-hover:scale-105 transition-transform duration-300 border border-white/5">
                                                     <FileVideo size={28} />
                                                 </div>
                                                 <div className="text-center">
@@ -487,7 +488,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
 
                                     {audioSourceType === 'upload' ? (
                                         <div
-                                            className={`border rounded-xl p-8 flex flex-col items-center justify-center transition-all h-60 relative ${audioFile ? 'border-fuchsia-500/30 bg-fuchsia-950/10' : 'border-white/8 hover:border-white/12 bg-white/[0.02]'
+                                            className={`border rounded-xl p-8 flex flex-col items-center justify-center transition-all h-60 relative ${audioFile ? 'border-orange-500/30 bg-fuchsia-950/10' : 'border-white/8 hover:border-white/12 bg-white/[0.02]'
                                                 }`}
                                             onDragOver={handleDragOver}
                                             onDragLeave={handleDragLeave}
@@ -504,7 +505,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                                         <X size={13} />
                                                     </button>
                                                     <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full h-full justify-center z-10">
-                                                        <div className="p-3.5 rounded-xl bg-fuchsia-500/10 text-fuchsia-400">
+                                                        <div className="p-3.5 rounded-xl bg-fuchsia-500/10 text-orange-400">
                                                             <Music size={24} />
                                                         </div>
                                                         <div className="text-center">
@@ -515,7 +516,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                                 </>
                                             ) : (
                                                 <label htmlFor="audio-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full h-full justify-center">
-                                                    <div className="p-4 rounded-xl bg-white/[0.04] text-fuchsia-400 border border-white/5">
+                                                    <div className="p-4 rounded-xl bg-white/[0.04] text-orange-400 border border-white/5">
                                                         <Music size={24} />
                                                     </div>
                                                     <div className="text-center">
@@ -529,7 +530,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                         <div className="h-60 flex flex-col gap-3">
                                             <div className="flex gap-2">
                                                 <button onClick={() => setTtsVoice('male')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'male' ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : 'bg-white/[0.02] border-white/5 text-gray-400 hover:border-white/10'}`}>Male</button>
-                                                <button onClick={() => setTtsVoice('female')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'female' ? 'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-300' : 'bg-white/[0.02] border-white/5 text-gray-400 hover:border-white/10'}`}>Female</button>
+                                                <button onClick={() => setTtsVoice('female')} className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${ttsVoice === 'female' ? 'bg-fuchsia-500/10 border-orange-500/30 text-fuchsia-300' : 'bg-white/[0.02] border-white/5 text-gray-400 hover:border-white/10'}`}>Female</button>
                                             </div>
                                             <textarea
                                                 value={ttsScript}
@@ -546,7 +547,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
                                     {/* Generated Audio Preview */}
                                     {(generatedAudioFile || audioFile) && (
                                         <div className="glass-panel rounded-xl p-3 flex items-center gap-3 animate-fade-in relative">
-                                            <div className="p-2 bg-fuchsia-500/10 rounded-lg text-fuchsia-400">
+                                            <div className="p-2 bg-fuchsia-500/10 rounded-lg text-orange-400">
                                                 <Music size={14} />
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -597,7 +598,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, apiKey,
 
                     {/* Minimal tools link */}
                     <div className="flex justify-center gap-4 text-[11px] text-gray-600 pb-4">
-                        <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="hover:text-purple-400 transition-colors flex items-center gap-1">
+                        <a href="https://podcast.adobe.com/enhance" target="_blank" rel="noreferrer" className="hover:text-orange-400 transition-colors flex items-center gap-1">
                             <Music size={9} /> Adobe Enhance
                         </a>
                     </div>

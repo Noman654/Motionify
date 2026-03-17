@@ -75,7 +75,7 @@ const CATEGORY_COLORS: Record<string, { dot: string; bg: string; text: string; b
     'Design': { dot: 'bg-gray-400', bg: 'bg-gray-500/8', text: 'text-gray-400', border: 'border-gray-500/20' },
     'Social': { dot: 'bg-pink-400', bg: 'bg-pink-500/8', text: 'text-pink-400', border: 'border-pink-500/20' },
     'Education': { dot: 'bg-blue-400', bg: 'bg-blue-500/8', text: 'text-blue-400', border: 'border-blue-500/20' },
-    'Creative': { dot: 'bg-fuchsia-400', bg: 'bg-fuchsia-500/8', text: 'text-fuchsia-400', border: 'border-fuchsia-500/20' },
+    'Creative': { dot: 'bg-fuchsia-400', bg: 'bg-fuchsia-500/8', text: 'text-orange-400', border: 'border-orange-500/20' },
     'Lifestyle': { dot: 'bg-emerald-400', bg: 'bg-emerald-500/8', text: 'text-emerald-400', border: 'border-emerald-500/20' },
     'Business': { dot: 'bg-indigo-400', bg: 'bg-indigo-500/8', text: 'text-indigo-400', border: 'border-indigo-500/20' },
 };
@@ -98,7 +98,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onSelectTempla
         <div className="space-y-3">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <Sparkles size={12} className="text-purple-400" />
+                    <Sparkles size={12} className="text-orange-400" />
                     <span className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.1em]">Templates</span>
                 </div>
             </div>

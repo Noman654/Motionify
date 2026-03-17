@@ -11,7 +11,7 @@ interface VisualTimelineProps {
     onSubtitleClick?: (subtitle: SRTItem) => void;
 }
 
-export const VisualTimeline: React.FC<VisualTimelineProps> = ({
+export const VisualTimeline: React.FC<VisualTimelineProps> = React.memo(({
     duration, currentTime, layoutConfig, srtData, onSeek, onSubtitleClick
 }) => {
     const sortedSteps = useMemo(() =>
@@ -163,4 +163,4 @@ export const VisualTimeline: React.FC<VisualTimelineProps> = ({
             </div>
         </div>
     );
-};
+});

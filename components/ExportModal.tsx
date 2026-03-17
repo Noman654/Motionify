@@ -587,7 +587,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        {isNative ? <Zap className="text-purple-400" /> : <Monitor className="text-purple-400" />}
+                        {isNative ? <Zap className="text-orange-400" /> : <Monitor className="text-orange-400" />}
                         {isNative ? 'Native Export' : 'Export Video'}
                     </h2>
                     <button onClick={onClose}><X className="text-gray-400 hover:text-white" /></button>
@@ -596,17 +596,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {status === 'idle' && !isNative && (
                     <div className="space-y-4">
                         {/* Desktop Required Banner */}
-                        <div className="bg-gradient-to-br from-purple-900/30 to-fuchsia-900/20 p-5 rounded-xl border border-purple-500/30 relative overflow-hidden">
-                            <div className="absolute -top-8 -right-8 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
+                        <div className="bg-gradient-to-br from-orange-900/30 to-orange-900/20 p-5 rounded-xl border border-orange-500/30 relative overflow-hidden">
+                            <div className="absolute -top-8 -right-8 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl" />
                             <div className="relative z-10">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                        <Zap size={16} className="text-purple-400" />
+                                    <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                                        <Zap size={16} className="text-orange-400" />
                                     </div>
-                                    <h3 className="text-purple-200 font-bold">Desktop Export Required</h3>
+                                    <h3 className="text-orange-200 font-bold">Desktop Export Required</h3>
                                 </div>
-                                <p className="text-purple-200/60 text-sm leading-relaxed">
-                                    Video export uses FFmpeg rendering which requires the <strong className="text-purple-300">Motionify Desktop App</strong>. Get notified when it's available!
+                                <p className="text-orange-200/60 text-sm leading-relaxed">
+                                    Video export uses FFmpeg rendering which requires the <strong className="text-orange-300">Motionify Desktop App</strong>. Get notified when it's available!
                                 </p>
                             </div>
                         </div>
@@ -615,10 +615,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                         {/* Interest Form CTA */}
                         <a
-                            href="https://forms.gle/1HT7g9bkrssooxwh9"
+                            href="https://forms.gle/Z4zgbpK5bzDZ8bx2A"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-purple-900/30"
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-violet-600 to-orange-600 hover:from-violet-500 hover:to-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-orange-900/30"
                         >
                             <ExternalLink size={14} /> Interest in Desktop App (Pro)
                         </a>
@@ -672,9 +672,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                 {status === 'idle' && isNative && (
                     <div className="space-y-4">
-                        <div className="bg-purple-900/20 p-4 rounded-xl border border-purple-500/30">
-                            <h3 className="text-purple-300 font-bold mb-1">Exact Replica Export</h3>
-                            <p className="text-purple-200/60 text-sm">
+                        <div className="bg-orange-900/20 p-4 rounded-xl border border-orange-500/30">
+                            <h3 className="text-orange-300 font-bold mb-1">Exact Replica Export</h3>
+                            <p className="text-orange-200/60 text-sm">
                                 Pixel-perfect render including all subtitle animations, colors, and effects.
                             </p>
                         </div>
@@ -692,7 +692,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                                         step={0.1}
                                         value={renderStartTime}
                                         onChange={(e) => setRenderStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
-                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
                                     />
                                 </div>
                                 <span className="text-gray-600 mt-4">→</span>
@@ -705,14 +705,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                                         step={0.1}
                                         value={renderEndTime}
                                         onChange={(e) => setRenderEndTime(Math.min(duration, parseFloat(e.target.value) || duration))}
-                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
                                     />
                                 </div>
                             </div>
                             <p className="text-[11px] text-gray-500">Duration: {Math.max(0, renderEndTime - renderStartTime).toFixed(1)}s ({Math.ceil(Math.max(0, renderEndTime - renderStartTime) * 30)} frames)</p>
                         </div>
 
-                        <button onClick={startNativeRender} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-all">
+                        <button onClick={startNativeRender} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition-all">
                             Start Render
                         </button>
                     </div>
@@ -724,7 +724,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         <div className="text-2xl font-bold text-white">{progress}%</div>
                         <p className="text-sm text-gray-400">{logText}</p>
                         <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden border border-gray-700/50">
-                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
+                            <div className="h-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
                         </div>
                     </div>
                 )}
@@ -733,12 +733,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     <div className="text-center space-y-4 p-4 rounded-xl bg-green-500/5 border border-green-500/20">
                         <CheckCircle size={32} className="text-green-500 mx-auto" />
                         <h3 className="text-xl font-bold text-white">Export Completed</h3>
-                        <p className="text-sm text-gray-400 break-all">Saved to: <span className="text-purple-300">{outputPath}</span></p>
+                        <p className="text-sm text-gray-400 break-all">Saved to: <span className="text-orange-300">{outputPath}</span></p>
 
                         <div className="flex flex-col gap-3 pt-4">
                             <button
                                 onClick={() => setStatus('idle')}
-                                className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-all"
+                                className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition-all"
                             >
                                 Re-export Video
                             </button>

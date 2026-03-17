@@ -153,7 +153,7 @@ export const HookAuditPanel: React.FC<HookAuditPanelProps> = ({
             {result.suggestedDesign && (
               <button
                 onClick={() => onApplySuggestion?.({ design: result.suggestedDesign })}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-lg text-[10px] font-bold text-purple-400 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-lg text-[10px] font-bold text-orange-400 transition-all"
               >
                 🎨 Design: <strong>{result.suggestedDesign.replace('_', ' ')}</strong>
                 <ArrowRight size={9} />
@@ -193,7 +193,7 @@ export const HookAuditPanel: React.FC<HookAuditPanelProps> = ({
                   mode: result.suggestedMode,
                   captionStyle: result.suggestedCaptionStyle,
                 })}
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 hover:from-purple-500/30 hover:to-cyan-500/30 border border-white/10 rounded-lg text-[10px] font-bold text-white transition-all"
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-orange-500/20 to-cyan-500/20 hover:from-orange-500/30 hover:to-cyan-500/30 border border-white/10 rounded-lg text-[10px] font-bold text-white transition-all"
               >
                 ⚡ Apply All Suggestions
                 <ArrowRight size={9} />

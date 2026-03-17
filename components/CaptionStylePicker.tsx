@@ -25,18 +25,18 @@ export const CaptionStylePicker: React.FC<CaptionStylePickerProps> = ({
                             className={`
                 group relative text-left p-3 rounded-xl border transition-all duration-200
                 ${isSelected
-                                    ? 'bg-purple-500/20 border-purple-500/60 ring-1 ring-purple-500/30 shadow-lg shadow-purple-500/10'
+                                    ? 'bg-orange-500/20 border-orange-500/60 ring-1 ring-orange-500/30 shadow-lg shadow-orange-500/10'
                                     : 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600/60'
                                 }
               `}
                         >
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-lg">{style.icon}</span>
-                                <span className={`text-sm font-semibold ${isSelected ? 'text-purple-300' : 'text-gray-300'}`}>
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-orange-300' : 'text-gray-300'}`}>
                                     {style.name}
                                 </span>
                             </div>
-                            <p className={`text-[10px] leading-tight ${isSelected ? 'text-purple-300/70' : 'text-gray-500'}`}>
+                            <p className={`text-[10px] leading-tight ${isSelected ? 'text-orange-300/70' : 'text-gray-500'}`}>
                                 {style.description}
                             </p>
                             {isSelected && (

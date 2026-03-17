@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SavedProject, getAllProjects, deleteProject, exportProjectToFile, searchProjects, getStorageStats } from '../utils/projectStorage';
 import { Folder, Clock, Download, Trash2, Search, X, FileText, Tag, ChevronDown, ChevronUp } from 'lucide-react';
+import { useToast } from './ToastContext';
 
 interface ProjectLibraryProps {
     onLoadProject: (project: SavedProject) => void;
@@ -8,6 +9,7 @@ interface ProjectLibraryProps {
 }
 
 export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, onClose }) => {
+    const { showConfirm } = useToast();
     const [projects, setProjects] = useState<SavedProject[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -31,9 +33,9 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
         }
     };
 
-    const handleDelete = (id: string, e: React.MouseEvent) => {
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm('Delete this project? This cannot be undone.')) {
+        if (await showConfirm('Delete this project? This cannot be undone.')) {
             deleteProject(id);
             loadProjects();
             setStats(getStorageStats());
@@ -71,7 +73,7 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
                 <div className="p-6 border-b border-gray-800">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <Folder size={24} className="text-purple-400" />
+                            <Folder size={24} className="text-orange-400" />
                             <h2 className="text-2xl font-bold text-white">Project Library</h2>
                         </div>
                         <button
@@ -90,7 +92,7 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
                             value={searchQuery}
                             onChange={(e) => handleSearch(e.target.value)}
                             placeholder="Search projects by name, context, or tags..."
-                            className="w-full bg-gray-950 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white text-sm focus:border-purple-500 outline-none"
+                            className="w-full bg-gray-950 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white text-sm focus:border-orange-500 outline-none"
                         />
                     </div>
 
@@ -105,13 +107,17 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
                 {/* Project List */}
                 <div className="flex-1 overflow-auto p-6">
                     {projects.length === 0 ? (
-                        <div className="text-center py-12">
-                            <Folder size={48} className="mx-auto text-gray-700 mb-4" />
-                            <p className="text-gray-500 text-sm">
-                                {searchQuery ? 'No projects found' : 'No saved projects yet'}
-                            </p>
-                            <p className="text-gray-600 text-xs mt-2">
-                                {!searchQuery && 'Projects will appear here after you save them'}
+                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center animate-fade-in">
+                            <div className="w-20 h-20 bg-orange-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(249,112,102,0.15)] border border-orange-500/20">
+                                {searchQuery ? <Search size={32} className="text-orange-400" /> : <Folder size={32} className="text-orange-400" />}
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
+                                {searchQuery ? 'No matches found' : 'Your creative journey starts here'}
+                            </h3>
+                            <p className="text-gray-400 text-sm max-w-[280px] leading-relaxed">
+                                {searchQuery 
+                                    ? `We couldn't find any projects matching "${searchQuery}".` 
+                                    : 'Save your first project from the Editor to see it appear in your library.'}
                             </p>
                         </div>
                     ) : (
@@ -119,7 +125,7 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
                             {projects.map((project) => (
                                 <div
                                     key={project.id}
-                                    className="bg-gray-950 border border-gray-800 rounded-lg hover:border-purple-500/50 transition-colors cursor-pointer"
+                                    className="bg-gray-950 border border-gray-800 rounded-lg hover:border-orange-500/50 transition-colors cursor-pointer"
                                 >
                                     {/* Project Card */}
                                     <div
@@ -146,7 +152,7 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
                                                 {project.tags && project.tags.length > 0 && (
                                                     <div className="flex items-center gap-1 mt-2">
                                                         {project.tags.slice(0, 3).map((tag, i) => (
-                                                            <span key={i} className="px-2 py-0.5 bg-purple-900/30 text-purple-300 rounded text-[10px]">
+                                                            <span key={i} className="px-2 py-0.5 bg-orange-900/30 text-orange-300 rounded text-[10px]">
                                                                 {tag}
                                                             </span>
                                                         ))}
@@ -199,7 +205,7 @@ export const ProjectLibrary: React.FC<ProjectLibraryProps> = ({ onLoadProject, o
                                                 </div>
                                                 <button
                                                     onClick={() => handleLoad(project)}
-                                                    className="w-full mt-3 bg-purple-600 hover:bg-purple-500 text-white py-2 rounded font-medium transition-colors"
+                                                    className="w-full mt-3 bg-orange-600 hover:bg-orange-500 text-white py-2 rounded font-medium transition-colors"
                                                 >
                                                     Load Project
                                                 </button>

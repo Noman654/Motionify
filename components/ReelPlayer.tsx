@@ -4,6 +4,8 @@ import { Play, Pause, RefreshCw, Maximize, Minimize, Video, StopCircle, X, Alert
 import { ExportModal } from './ExportModal';
 import { getPreviewContainerStyle, getPreviewWordStyle, DEFAULT_STYLE_ID } from '../utils/captionStyles';
 import { BRollClip } from '../services/brollService';
+import { APP_CONFIG } from '../config';
+import { useToast } from './ToastContext';
 import { ActiveHook } from '../services/hookService';
 import { HookLabPanel } from './HookLabPanel';
 import { HookOverlay } from './HookOverlay';
@@ -35,7 +37,7 @@ interface ReelPlayerProps {
   isGenerating?: boolean;
 }
 
-export const ReelPlayer: React.FC<ReelPlayerProps> = ({
+export const ReelPlayer: React.FC<ReelPlayerProps> = React.memo(({
   videoUrl,
   videoFile,
   srtData,
@@ -60,8 +62,10 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
   onRetryGeneration,
   isGenerating = false
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const { showToast } = useToast();
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -460,7 +464,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
     try {
       const mimeType = getSupportedMimeType();
       if (!mimeType) {
-        alert("Your browser does not support valid video recording formats.");
+        showToast("Your browser does not support valid video recording formats.", "error");
         return;
       }
 
@@ -701,27 +705,27 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
 
             <button
               onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-purple-900/30 hover:shadow-purple-900/50 hover:-translate-y-0.5"
+              className="glass-button w-12 h-12 flex items-center justify-center rounded-full text-[var(--color-accent-primary)] hover:text-white"
+              title="Export Video"
             >
-              <Video size={16} />
-              Export Video
+              <Video size={18} />
             </button>
 
             {onRetryGeneration && (
               <button
                 onClick={onRetryGeneration}
                 disabled={isGenerating}
-                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 hover:from-cyan-600/30 hover:to-blue-600/30 border border-cyan-500/20 text-cyan-400 rounded-xl font-bold text-sm transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-tertiary flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Regenerate animation if it appears blank or broken"
               >
-                {isGenerating ? <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-white rounded-full animate-spin" /> : <RefreshCw size={14} />}
-                {isGenerating ? 'Generating...' : 'Retry Animation'}
+                {isGenerating ? <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-white rounded-full animate-spin" /> : <RefreshCw size={16} />}
+                {isGenerating ? 'Generating...' : 'Retry'}
               </button>
             )}
 
             <button
               onClick={() => setShowHookLab(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-600/20 to-orange-600/20 hover:from-amber-600/30 hover:to-orange-600/30 border border-amber-500/20 text-amber-400 rounded-xl font-bold text-sm transition-all hover:-translate-y-0.5"
+              className="btn-tertiary flex items-center gap-2 px-4 py-2 text-sm text-amber-500 hover:text-amber-400"
               title="Hook Lab — Test viral hook variants"
             >
               <Zap size={16} />
@@ -816,4 +820,4 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({
       </div>
     </div >
   );
-};
+});

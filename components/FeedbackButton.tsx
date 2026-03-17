@@ -13,12 +13,12 @@ export const FeedbackButton: React.FC = () => {
     return (
         <div className="fixed bottom-5 right-5 z-[90] flex items-center gap-2 animate-fade-in" style={{ animationDelay: '2s', animationFillMode: 'backwards' }}>
             <a
-                href="https://forms.gle/YOUR_FEEDBACK_FORM_ID"
+                href="https://forms.gle/Z4zgbpK5bzDZ8bx2A"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-xl border border-white/10 rounded-full text-xs font-medium text-gray-300 hover:text-white transition-all shadow-lg shadow-black/20 group"
             >
-                <MessageSquareWarning size={14} className="text-purple-400 group-hover:text-purple-300" />
+                <MessageSquareWarning size={14} className="text-orange-400 group-hover:text-orange-300" />
                 Feedback / Report Bug
             </a>
             <button
