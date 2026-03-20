@@ -26,6 +26,8 @@ export interface GeneratedContent {
   html: string;
   layoutConfig: LayoutConfigStep[];
   reasoning?: string;
+  rawPrompt?: string;
+  systemPrompt?: string;
 }
 
 export enum AppState {

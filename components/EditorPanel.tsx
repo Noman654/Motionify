@@ -3,7 +3,7 @@ import { GeneratedContent, LayoutConfigStep, SRTItem } from '../types';
 import { Code, Layout, Settings, Save, Download, Music, ExternalLink, Copy, CheckCircle2, Sparkles, MessageSquare, Trash2, FileAudio, Key, Edit2, X, Check, Bot, Zap, Cpu, BrainCircuit, ShieldAlert, Lock, RefreshCw, Search, Upload, Image as ImageIcon, AlertTriangle, Type, Palette, Loader2 } from 'lucide-react';
 import { extractWavFromVideo } from '../utils/audioHelpers';
 import { constructPrompt, constructPromptWithAssets } from '../utils/promptTemplates';
-import { validateGeminiConnection } from '../services/geminiService';
+import { validateGeminiConnection, getDesignStyleInstructions } from '../services/geminiService';
 import { APP_CONFIG } from '../config';
 import { CaptionStylePicker } from './CaptionStylePicker';
 import { DEFAULT_STYLE_ID } from '../utils/captionStyles';
@@ -107,7 +107,44 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   const [viewMode, setViewMode] = useState<'original' | 'offline'>('original'); // Toggle state
   const [isExtracting, setIsExtracting] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [copiedStyleId, setCopiedStyleId] = useState<string | null>(null);
   const [isGeneratingOffline, setIsGeneratingOffline] = useState(false); // Loading state for inline generation
+
+  const handleCopyStylePrompt = (e: React.MouseEvent, styleId: string) => {
+    e.stopPropagation(); // prevent selecting the style
+    const cachedContent = animationCache[styleId];
+    if (!cachedContent) return;
+    
+    let fullPrompt = "";
+    if (cachedContent.systemPrompt && cachedContent.rawPrompt) {
+      fullPrompt = `=== SYSTEM INSTRUCTION ===\n${cachedContent.systemPrompt}\n\n=== USER PROMPT ===\n${cachedContent.rawPrompt}`;
+    } else {
+      // Reconstruct for legacy cached styles that didn't save their prompt
+      const reconstructedUserPrompt = constructPromptWithAssets(topicContext, srtText, assets);
+      const reconstructedDesign = getDesignStyleInstructions(styleId);
+      
+      const reconstructedSystemPrompt = `You are a world-class Motion Graphics Designer and Creative Technologist for high-retention social media video (Reels/TikTok).
+Your goal is to generate or refine a visual composition that transforms a raw transcript into an immersive, "edutainment" style video experience.
+
+### DESIGN SYSTEM & AESTHETIC
+You must output high-fidelity, polished UI/UX animation.
+${reconstructedDesign}
+
+### VISUAL CONTENT RULES (CRITICAL — READ CAREFULLY)
+The app already displays subtitles/captions over the video. Your HTML animation is the VISUAL LAYER — it must ILLUSTRATE concepts, NOT describe them in text.
+
+**DO NOT** create text cards that repeat what the speaker is saying. The subtitles handle that.
+
+**INSTEAD**, create VISUAL METAPHORS and INTERACTIVE ELEMENTS that represent the topic:
+[... truncated other standard rules like GSAP instructions for brevity ...]
+`;
+
+      fullPrompt = `=== SYSTEM INSTRUCTION (Reconstructed) ===\n${reconstructedSystemPrompt}\n\n=== USER PROMPT (Reconstructed) ===\n${reconstructedUserPrompt}`;
+    }
+    navigator.clipboard.writeText(fullPrompt);
+    setCopiedStyleId(styleId);
+    setTimeout(() => setCopiedStyleId(null), 2000);
+  };
 
   // Search functionality
   const [searchTerm, setSearchTerm] = useState('');
@@ -218,8 +255,14 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   };
 
   const handleCopyPrompt = () => {
-    const prompt = constructPromptWithAssets(topicContext, srtText, assets);
-    navigator.clipboard.writeText(prompt);
+    let fullPrompt = "";
+    if (content.systemPrompt && content.rawPrompt) {
+      fullPrompt = `=== SYSTEM INSTRUCTION ===\n${content.systemPrompt}\n\n=== USER PROMPT ===\n${content.rawPrompt}`;
+    } else {
+      const prompt = constructPromptWithAssets(topicContext, srtText, assets);
+      fullPrompt = `=== USER PROMPT (No System Instruction saved) ===\n${prompt}`;
+    }
+    navigator.clipboard.writeText(fullPrompt);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
   }
@@ -452,7 +495,16 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           </div>
                         </div>
                         {isCached && !isGen && (
-                          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                          <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" title="Cached — instant" />
+                            <button
+                              onClick={(e) => handleCopyStylePrompt(e, 'default')}
+                              className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors z-10"
+                              title="Copy prompt for this style"
+                            >
+                              {copiedStyleId === 'default' ? <CheckCircle2 size={10} className="text-green-400" /> : <Copy size={10} />}
+                            </button>
+                          </div>
                         )}
                       </button>
                     );
@@ -486,7 +538,16 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           </div>
                         </div>
                         {isCached && !isGen && (
-                          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-400 rounded-full" title="Cached — instant" />
+                          <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" title="Cached — instant" />
+                            <button
+                              onClick={(e) => handleCopyStylePrompt(e, d.id)}
+                              className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors z-10"
+                              title="Copy prompt for this style"
+                            >
+                              {copiedStyleId === d.id ? <CheckCircle2 size={10} className="text-green-400" /> : <Copy size={10} />}
+                            </button>
+                          </div>
                         )}
                       </button>
                     );

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motionify Prompt Lab (Multi-Layer)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a25;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --text-dim: #888899;
+    --accent: #6366f1;
+    --accent-glow: rgba(99,102,241,0.3);
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #6366f1, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Main Layout */
+  .main {
+    display: grid;
+    grid-template-columns: minmax(400px, 1fr) 350px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Left Panel */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-content { display: none; flex: 1; overflow: auto; padding: 16px; flex-direction: column; gap: 16px; }
+  .tab-content.active { display: flex; }
+
+  /* Form */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .form-row {
+    display: flex;
+    gap: 16px;
+  }
+  .form-row > .form-group {
+    flex: 1;
+  }
+  
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  label span {
+    font-size: 10px;
+    font-weight: normal;
+    text-transform: none;
+    color: var(--accent);
+  }
+  input[type="text"], input[type="password"], select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  
+  textarea {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+    resize: vertical;
+    line-height: 1.5;
+    min-height: 120px;
+  }
+  
+  .flex-fill { flex: 1; }
+
+  /* Buttons */
+  .btn-row {
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .btn {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: white; flex: 1; }
+  .btn-primary:hover { filter: brightness(1.15); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--text); }
+
+  /* Right Panel - Preview */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    background: #000;
+  }
+  .preview-header {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .preview-header span { font-size: 13px; font-weight: 500; color: var(--text-dim); }
+  .preview-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone-frame {
+    width: 300px;
+    height: 534px;
+    border: 2px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    background: #050505;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  }
+  .phone-frame iframe { width: 100%; height: 100%; border: none; }
+
+  /* Playback Controls */
+  .playback-controls {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .play-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .timeline-slider { flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; }
+  .timeline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .time-display { font-size: 12px; font-family: monospace; color: var(--text-dim); min-width: 70px; text-align: right; }
+
+  /* Status */
+  .status-bar {
+    padding: 8px 16px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); }
+  .status-dot.generating { background: var(--warning); animation: pulse 1s infinite; }
+  .status-dot.success { background: var(--success); }
+  .status-dot.error { background: var(--danger); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .code-output { flex: 1; overflow: auto; background: var(--surface-2); padding: 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .code-output pre { font-family: monospace; font-size: 11px; color: var(--text-dim); white-space: pre-wrap; word-break: break-all; }
+  
+  .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); gap: 8px; }
+  .placeholder .icon { font-size: 32px; opacity: 0.3; }
+  .step-badge { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10px; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ Motionify Prompt Lab</h1>
+  <span class="badge">v2.0 Two-Pass Multi-Layer</span>
+  <div style="flex:1"></div>
+  <input type="password" id="apiKey" placeholder="Gemini API Key..." style="width: 250px; padding: 6px 10px; font-size: 12px;" />
+  <select id="model" style="padding: 6px 10px; font-size: 12px;">
+    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+    <option value="gemini-2.5-pro" selected>gemini-2.5-pro</option>
+    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+  </select>
+</div>
+
+<div class="main">
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="tabs">
+      <div class="tab active" data-tab="layer1">Layer 1: Scene Plan</div>
+      <div class="tab" data-tab="layer2">Layer 2: Animation</div>
+      <div class="tab" data-tab="config">Prompts Config</div>
+    </div>
+
+    <!-- Layer 1: Scene Plan -->
+    <div class="tab-content active" id="tab-layer1">
+      <div class="form-group">
+        <label>Topic / Context <span>(What is this about?)</span></label>
+        <input type="text" id="topic" placeholder="e.g. How DNS Works" />
+      </div>
+      
+      <div class="form-group flex-fill" style="display: flex; flex-direction: column;">
+        <label>1. Raw Transcript (SRT) <span>(Input)</span></label>
+        <textarea id="srt" style="flex: 1;" placeholder="Paste SRT..."></textarea>
+      </div>
+
+      <div class="form-group flex-fill" style="display: flex; flex-direction: column;">
+        <label>2. Generated Scene Plan <span>(Output / Editable)</span></label>
+        <textarea id="scenePlan" style="flex: 1; border-color: var(--accent);" placeholder="Generate or write your own scene storyboard here..."></textarea>
+      </div>
+      
+      <div class="btn-row" style="background: transparent; padding: 0; border: none;">
+        <button class="btn btn-secondary" onclick="loadSampleSRT()">Load Sample</button>
+        <button class="btn btn-primary" id="btnGenScene" onclick="generateScenePlan()">
+          <span class="step-badge">STEP 1</span> Generate Scene Plan
+        </button>
+      </div>
+    </div>
+
+    <!-- Layer 2: Animation -->
+    <div class="tab-content" id="tab-layer2">
+      <p style="font-size: 12px; color: var(--text-dim); line-height: 1.5;">
+        This passes the <strong>Scene Plan</strong> + <strong>SRT</strong> into the Animator prompt. 
+        It forces the AI to follow your choreography instead of guessing.
+      </p>
+
+      <div class="form-group flex-fill" style="display: flex; flex-direction: column;">
+        <label>Generated HTML Output</label>
+        <div class="code-output">
+          <pre id="codeOutput">Waiting for generation...</pre>
+        </div>
+      </div>
+      
+      <div class="btn-row" style="background: transparent; padding: 0; border: none;">
+        <button class="btn btn-primary" id="btnGenHTML" onclick="generateHTML()">
+          <span class="step-badge">STEP 2</span> Generate GSAP HTML
+        </button>
+      </div>
+    </div>
+    
+    <!-- Config Prompts -->
+    <div class="tab-content" id="tab-config">
+      <div class="form-group flex-fill">
+        <label>Layer 1 Prompt: Storyboard Artist</label>
+        <textarea id="promptScene" style="height: 200px; font-size: 11px;"></textarea>
+      </div>
+      <div class="form-group flex-fill">
+        <label>Layer 2 Prompt: Motion Director</label>
+        <textarea id="promptAnim" style="height: 300px; font-size: 11px;"></textarea>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <div class="preview-header">
+      <span>Preview (9:16)</span>
+      <span id="genTime"></span>
+    </div>
+    <div class="preview-container">
+      <div class="phone-frame">
+        <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+        <div class="placeholder" id="previewPlaceholder">
+          <div class="icon">🎬</div>
+          <p>Generate to preview</p>
+        </div>
+      </div>
+    </div>
+    <div class="playback-controls">
+      <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+      <input type="range" class="timeline-slider" id="timeline" min="0" max="60" step="0.1" value="0" oninput="seekTo(this.value)" />
+      <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   PROMPTS
+   ═══════════════════════════════════════════════════════ */
+const PROMPT_SCENE = `You are a visionary Motion Graphics Director creating an educational Reel.
+I will give you a topic and a transcript (SRT).
+Your job is to blueprint a VISUAL STAGE and choreograph UI ELEMENTS using this strict vocabulary.
+
+**CRITICAL RULE:** DO NOT animate transcript text. The text is strictly for timing sync. You are designing an abstract, sleek, 3D visual layer.
+
+**1. VISUAL AESTHETIC**
+* Vibe: Cyberpunk-meets-Apple. Dark mode background.
+* Elements: Glassmorphism UI cards, 1px bright borders.
+* Theme: Nodes, graphs, data packets, modular grids. 
+
+**2. MOTION CHOREOGRAPHY RULES**
+You MUST use these exact terms to describe actions so the Animator understands:
+* SPAWN: Element scales from 0→1 with elastic bounce and neon glow.
+* SHATTER: A monolithic element violently splinters into jagged fragments/smaller nodes.
+* MORPH: Smoothly transition an element's shape/position.
+* CONVERGE: An aggressively scattered state is sucked into the center.
+* SPLIT/ZOOM: The camera zooms out or the screen splits into sections.
+* DRIFT/SCAN: Dozens of unmatched floating shapes drift while a scanner light sweeps over them.
+
+**3. TIMELINE MAPPING**
+Output a precise SCENE PLAN mapping exactly to the SRT timestamps. Give elements specific semantic IDs.
+
+Example format:
+[00:00:11.700 -> 00:00:15.900]
+Elements: #node-sql (blue card), #node-sales (red card), #node-finance
+Action: #node-sql violently SHATTERS. Jagged red SVG connection lines shoot out to #node-sales and #node-finance. The cards heavily shake/vibrate via a rough ease curve. Ensure chaotic feeling.
+
+Provide ONLY the Scene Plan storyboard map. Do not write code.`;
+
+const PROMPT_ANIM = `Act as an elite Creative Technologist and GSAP Wizard.
+I will provide:
+1. The SRT Transcript (for reading the exact timing)
+2. The SCENE PLAN (The exact Choreography and Stage Setup)
+
+Your job: Translate the SCENE PLAN into a flawless HTML/CSS/GSAP file.
+
+**CRITICAL RULE:** DO NOT animate my transcript text! No kinetic typography!
+
+**1. CSS & AESTHETIC REQUIREMENTS**
+* Dark mode: \`body { background: #050505; color: white; margin: 0; overflow: hidden; }\`
+* Glassmorphism Cards: \`background: rgba(255,255,255,0.04); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;\`
+* 3D Depth Canvas: Give the parent stage \`perspective: 1000px;\` and use GSAP \`translateZ\` to push/pull elements in depth. Z-index layering is crucial.
+* Glows: Give active nodes neon glows using \`box-shadow: 0 0 30px rgba(0,243,255,0.3);\`.
+* Typography: Use Google Fonts 'Oswald' (headings) and 'JetBrains Mono' (data/tags).
+
+**2. GSAP BEST PRACTICES**
+* Build ONE master timeline: \`const tl = gsap.timeline({ paused: true });\`
+* Map actions to precise timestamp offsets: \`tl.to("#node-sql", {...}, 5.9)\`
+* Easing: Explode/Shatter using \`expo.out\`, Spawn using \`back.out(1.7)\` or \`elastic.out\`. Shake using CustomEase/rough.
+* ALWAYS quote CSS properties in JS: \`{ width: '100%', left: '50%' }\`.
+* Hide everything on load (\`opacity: 0, scale: 0.8\`).
+
+**3. TECHNICAL SYNC (MANDATORY)**
+Include this EXACT code structure inside the <script> to sync playback:
+\`\`\`javascript
+const tl = gsap.timeline({ paused: true });
+// ... your animation mapping here ...
+
+window.addEventListener('message', (e) => {
+  const { type, time } = e.data || {};
+  if (type === 'timeupdate') tl.seek(time);
+  if (type === 'play') tl.play();
+  if (type === 'pause') tl.pause();
+});
+\`\`\`
+
+**4. OUTPUT**
+* Output ONE self-contained HTML file (<!DOCTYPE html> to <\\/html>).
+* Include GSAP CDN: \`<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"><\\/script>\`
+* No JS single-line comments (\`//\`) — use block comments (\`/* */\`) only.
+
+Output purely the raw HTML code. Do not wrap in markdown fences if you can avoid it.`;
+
+/* Init */
+document.getElementById('promptScene').value = PROMPT_SCENE;
+document.getElementById('promptAnim').value = PROMPT_ANIM;
+
+const savedKey = localStorage.getItem('promptlab_apikey');
+if (savedKey) document.getElementById('apiKey').value = savedKey;
+
+/* ═══════════════════════════════════════════════════════
+   APP STATE
+   ═══════════════════════════════════════════════════════ */
+let isPlaying = false, playInterval = null, currentTime = 0, duration = 60;
+
+/* Tabs */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* Sample Data */
+function loadSampleSRT() {
+  document.getElementById('topic').value = "Evolution of Data Architecture";
+  document.getElementById('srt').value = `1
+00:00:00,000 --> 00:00:05,900
+In the 70s and 80s, SQL let us talk to data.
+
+2
+00:00:05,900 --> 00:00:11,700
+Sales said one thing, finance another and the meeting became chaos.
+
+3
+00:00:11,700 --> 00:00:15,900
+So in the late 80s we built data warehouses.
+
+4
+00:00:15,900 --> 00:00:24,600
+By the 90s, MPP arrived. Many nodes running one SQL faster.
+
+5
+00:00:24,600 --> 00:00:33,600
+In the early 2000s, columnar storage changed it. Read only what you need.
+
+6
+00:00:33,600 --> 00:00:41,900
+Then in 2010, cloud separated storage and compute.
+
+7
+00:00:41,900 --> 00:00:50,100
+Cloud also gave birth to data lakes. A place to store messy, unstructured data.`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   API CALL HELPER
+   ═══════════════════════════════════════════════════════ */
+async function callGemini(systemText, userText) {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const model = document.getElementById('model').value;
+  if (!apiKey) throw new Error('Enter your API key');
+  
+  localStorage.setItem('promptlab_apikey', apiKey);
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemText }] },
+      contents: [{ parts: [{ text: userText }] }],
+      generationConfig: { maxOutputTokens: 65536, temperature: 0.7 }
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/* ═══════════════════════════════════════════════════════
+   STEP 1: GENERATE SCENE PLAN
+   ═══════════════════════════════════════════════════════ */
+async function generateScenePlan() {
+  const srt = document.getElementById('srt').value.trim();
+  const topic = document.getElementById('topic').value.trim();
+  if (!srt) { setStatus('error', 'Provide an SRT first'); return; }
+
+  const btn = document.getElementById('btnGenScene');
+  btn.disabled = true;
+  setStatus('generating', 'Generating Scene Plan...');
+
+  const userPrompt = `TOPIC: ${topic || "General"}\n\nTRANSCRIPT (SRT):\n${srt}`;
+  
+  try {
+    const plan = await callGemini(document.getElementById('promptScene').value, userPrompt);
+    document.getElementById('scenePlan').value = plan;
+    setStatus('success', 'Scene Plan Generated! You can edit it before Step 2.');
+  } catch (err) {
+    setStatus('error', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   STEP 2: GENERATE GSAP HTML
+   ═══════════════════════════════════════════════════════ */
+async function generateHTML() {
+  const srt = document.getElementById('srt').value.trim();
+  const plan = document.getElementById('scenePlan').value.trim();
+  if (!plan) { setStatus('error', 'Generate or write a Scene Plan first'); return; }
+
+  const btn = document.getElementById('btnGenHTML');
+  btn.disabled = true;
+  setStatus('generating', 'Generating HTML Animation...');
+  const startMs = Date.now();
+
+  const userPrompt = `TRANSCRIPT (SRT):\n${srt}\n\nAPPROVED SCENE PLAN:\n${plan}\n\nTASK: Generate the final HTML/GSAP passing the exact timings from the SRT onto the actions in the Scene Plan mechanics.`;
+
+  try {
+    let html = await callGemini(document.getElementById('promptAnim').value, userPrompt);
+    html = html.replace(/^\s*```html?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+    if (!html || html.length < 100) throw new Error('Model returned empty or too-short HTML');
+
+    const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    document.getElementById('genTime').textContent = elapsed + 's';
+    document.getElementById('codeOutput').textContent = html;
+
+    /* Detect duration */
+    const timeRegex = /(\d{2}):(\d{2}):(\d{2}),(\d{3})/g;
+    let maxTime = 60, match;
+    while ((match = timeRegex.exec(srt)) !== null) {
+      const t = parseInt(match[1])*3600 + parseInt(match[2])*60 + parseInt(match[3]) + parseInt(match[4])/1000;
+      if (t > maxTime) maxTime = t;
+    }
+    duration = Math.ceil(maxTime) + 5;
+    document.getElementById('timeline').max = duration;
+
+    renderPreview(html);
+    setStatus('success', `Generated in ${elapsed}s`);
+    document.querySelectorAll('.tab')[1].click(); /* Switch to Layer 2 tab */
+
+  } catch (err) {
+    setStatus('error', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PREVIEW LOGIC
+   ═══════════════════════════════════════════════════════ */
+function renderPreview(html) {
+  document.getElementById('previewPlaceholder').style.display = 'none';
+  const iframe = document.getElementById('previewFrame');
+  iframe.srcdoc = html;
+  currentTime = 0; isPlaying = false; document.getElementById('playBtn').textContent = '▶';
+  if (playInterval) clearInterval(playInterval);
+}
+
+function togglePlay() {
+  const iframe = document.getElementById('previewFrame');
+  if (!iframe.srcdoc) return;
+  isPlaying = !isPlaying;
+  document.getElementById('playBtn').textContent = isPlaying ? '⏸' : '▶';
+
+  if (isPlaying) {
+    iframe.contentWindow.postMessage({ type: 'play' }, '*');
+    playInterval = setInterval(() => {
+      currentTime += 0.05;
+      if (currentTime >= duration) {
+        currentTime = 0; isPlaying = false; document.getElementById('playBtn').textContent = '▶';
+        clearInterval(playInterval);
+      }
+      iframe.contentWindow.postMessage({ type: 'timeupdate', time: currentTime }, '*');
+      document.getElementById('timeline').value = currentTime;
+      updateTimeDisplay();
+    }, 50);
+  } else {
+    iframe.contentWindow.postMessage({ type: 'pause' }, '*');
+    if (playInterval) clearInterval(playInterval);
+  }
+}
+
+function seekTo(val) {
+  currentTime = parseFloat(val);
+  const iframe = document.getElementById('previewFrame');
+  if (iframe.srcdoc) iframe.contentWindow.postMessage({ type: 'timeupdate', time: currentTime }, '*');
+  updateTimeDisplay();
+}
+
+function updateTimeDisplay() {
+  const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  document.getElementById('timeDisplay').textContent = fmt(currentTime) + ' / ' + fmt(duration);
+}
+
+function setStatus(type, msg) {
+  document.getElementById('statusDot').className = 'status-dot ' + type;
+  document.getElementById('statusText').textContent = msg;
+}
+</script>
+</body>
+</html>

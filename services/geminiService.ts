@@ -201,6 +201,26 @@ export const generateReelContent = async (
     You must output high-fidelity, polished UI/UX animation.
     ${designInstructions}
 
+    ### VISUAL CONTENT RULES (CRITICAL — READ CAREFULLY)
+    The app already displays subtitles/captions over the video. Your HTML animation is the VISUAL LAYER — it must ILLUSTRATE concepts, NOT describe them in text.
+
+    **DO NOT** create text cards that repeat what the speaker is saying. The subtitles handle that.
+    
+    **INSTEAD**, create VISUAL METAPHORS and INTERACTIVE ELEMENTS that represent the topic:
+    - For **code/programming** topics → Show actual code being typed out (typewriter effect), syntax-highlighted snippets, terminal outputs
+    - For **databases/SQL** → Show SQL queries typing out, data tables/grids filling with values, database schema diagrams
+    - For **networking** → Show network node graphs, data packets flowing between nodes, routing diagrams
+    - For **data structures** → Show the actual structure (linked list nodes, tree diagrams, hash tables, arrays with cells)
+    - For **architecture** → Show system diagrams, boxes with arrows, layered stacks, microservice meshes
+    - For **math/science** → Show formulas animating in, graphs plotting, equations transforming
+    - For **timelines/history** → Show timeline bars, era markers progressing, before/after comparisons
+    - For **comparisons** → Show side-by-side panels, progress bars, meter gauges, vs. splits
+    - For **general concepts** → Show icons, abstract shapes, infographic-style visuals, animated diagrams
+
+    **KEY PRINCIPLE**: If the speaker says "SQL let us talk to data", the animation should show a SQL query like \`SELECT * FROM users\` typing out with a blinking cursor — NOT a card that says "SQL: A language for databases".
+
+    Think like a YouTube tech explainer's B-roll: code editors, terminal windows, architecture diagrams, flowing data visualizations.
+
     ### JAVASCRIPT ROBUSTNESS RULES (CRITICAL)
     To prevent "Uncaught TypeError" and "SyntaxError" loops, you MUST strictly follow these patterns:
 
@@ -382,6 +402,10 @@ TASK: Return the FULLY UPDATED and COMPLETE HTML and Layout JSON. The HTML must 
         result.html = reelHelperScript + result.html;
       }
 
+      /* Attach the exact prompts used for debugging/copying */
+      result.rawPrompt = prompt;
+      result.systemPrompt = systemInstruction;
+
       return result as GeneratedContent;
     } catch (error: any) {
       console.error(`Gemini Generation Error (attempt ${attempt}):`, error);
@@ -409,78 +433,95 @@ TASK: Return the FULLY UPDATED and COMPLETE HTML and Layout JSON. The HTML must 
 
 /* ═══════════════════════════════════════════════════════
    Design Style Instructions for HTML Animation Generation
-   Each style provides Gemini with specific CSS/design rules
+   Each style provides Gemini with specific CSS/design rules.
+   IMPORTANT: Each style must be self-contained and comprehensive
+   so the AI doesn't fall back to Default aesthetics.
    ═══════════════════════════════════════════════════════ */
-function getDesignStyleInstructions(style?: string): string {
+export function getDesignStyleInstructions(style?: string): string {
   switch (style) {
     case 'glassmorphism':
-      return `**DESIGN STYLE: GLASSMORPHISM**
+      return `**DESIGN STYLE: GLASSMORPHISM** — You MUST fully commit to this style. Do NOT mix in dark-neon or cyberpunk aesthetics.
     1. **Color Palette**: Dark frosted backgrounds. 
        - \`:root { --bg-deep: #0a0a1a; --glass-bg: rgba(255,255,255,0.08); --glass-border: rgba(255,255,255,0.15); --primary: #60a5fa; --accent: #a78bfa; --white: #f0f0ff; }\`
-    2. **Card Style**: All content containers MUST use frosted glass effect:
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">\`
+    3. **Card Style**: All content containers MUST use frosted glass effect:
        - \`background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);\`
-    3. **Typography**: Use 'Inter' or system-ui. Clean, modern, light weight.
-    4. **Animation**: Smooth, elegant. Fade + scale. Glass shimmer effects. Subtle blur transitions.
-    5. **NO** harsh neon glows. Keep it refined, frosted, translucent.`;
+    4. **Typography**: Use 'Inter'. Clean, modern, light weight (300-400 body, 600-700 headings).
+    5. **Animation**: Smooth, elegant. Fade + scale. Glass shimmer effects. Subtle blur transitions. Use \`power2.inOut\` easing.
+    6. **Background**: \`background: radial-gradient(ellipse at top, #1a1a3e 0%, #0a0a1a 70%);\` — NOT pure black.
+    7. **NO** harsh neon glows, NO JetBrains Mono, NO Oswald. Keep it refined, frosted, translucent.`;
 
     case 'neo_brutalism':
-      return `**DESIGN STYLE: NEO-BRUTALISM**
-    1. **Color Palette**: Bright, bold, raw.
+      return `**DESIGN STYLE: NEO-BRUTALISM** — You MUST fully commit to this style. Do NOT use dark backgrounds or neon colors.
+    1. **Color Palette**: Bright, bold, raw. LIGHT backgrounds.
        - \`:root { --bg-deep: #fffbe6; --primary: #ff6b35; --secondary: #004e89; --accent: #f7c948; --black: #1a1a2e; --white: #fffbe6; }\`
-    2. **Card Style**: All containers MUST have:
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">\`
+    3. **Card Style**: All containers MUST have:
        - \`background: var(--accent); border: 4px solid var(--black); box-shadow: 6px 6px 0 var(--black); border-radius: 0;\`
        - SHARP corners (border-radius: 0). THICK borders. OFFSET shadows.
-    3. **Typography**: Use 'Arial Black', 'Impact', or 'Space Grotesk'. BOLD, uppercase, large.
-    4. **Animation**: Aggressive — SLAM in, shake, bounce. No subtle fades.
-    5. **Text color**: Black on bright backgrounds. High contrast. Raw energy.
-    6. Dark text on light/colored backgrounds. NOT white text on dark.`;
+    4. **Typography**: Use 'Space Grotesk' or 'Arial Black'. BOLD, uppercase, large. Dark text on light/colored backgrounds.
+    5. **Animation**: Aggressive — SLAM in with \`back.out(2)\`, shake, bounce. Use \`expo.out\` for reveals. No subtle fades.
+    6. **Background**: body background MUST be \`var(--bg-deep)\` (#fffbe6) — a warm cream. NOT dark.
+    7. **Text color**: ALWAYS dark (#1a1a2e) on bright backgrounds. High contrast. Raw energy.`;
 
     case 'clay_morphism':
-      return `**DESIGN STYLE: CLAYMORPHISM**
-    1. **Color Palette**: Soft pastels, friendly.
+      return `**DESIGN STYLE: CLAYMORPHISM** — You MUST fully commit to this style. Do NOT use dark backgrounds or neon colors.
+    1. **Color Palette**: Soft pastels, friendly. LIGHT backgrounds.
        - \`:root { --bg-deep: #f0e6ff; --card-bg: #e8dff5; --primary: #7c3aed; --accent: #ec4899; --success: #10b981; --white: #faf5ff; }\`
-    2. **Card Style**: Soft, puffy, clay-like 3D:
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">\`
+    3. **Card Style**: Soft, puffy, clay-like 3D:
        - \`background: linear-gradient(145deg, #e8dff5, #d4c5e8); border-radius: 20px; box-shadow: 8px 8px 16px rgba(0,0,0,0.15), -4px -4px 8px rgba(255,255,255,0.7), inset 2px 2px 4px rgba(255,255,255,0.5); border: none;\`
-    3. **Typography**: Use 'Nunito', 'Poppins', or rounded fonts. Friendly, soft.
-    4. **Animation**: Bouncy, jelly-like. Use GSAP elastic ease. Squash and stretch.
-    5. **Icons/Elements**: Rounded, soft, 3D-feeling. Pastel accents.`;
+    4. **Typography**: Use 'Nunito'. Friendly, soft, rounded. Dark text on pastel backgrounds.
+    5. **Animation**: Bouncy, jelly-like. Use GSAP \`elastic.out(1, 0.3)\` ease. Squash and stretch effects.
+    6. **Background**: body background MUST be \`var(--bg-deep)\` (#f0e6ff) — soft lavender. NOT dark.
+    7. **Icons/Elements**: Rounded, soft, 3D-feeling. Pastel accents. NO sharp edges.`;
 
     case 'minimalism':
-      return `**DESIGN STYLE: MINIMALISM**
+      return `**DESIGN STYLE: MINIMALISM** — You MUST fully commit to this style. Do NOT use dark backgrounds or neon colors or glows.
     1. **Color Palette**: Monochrome with ONE accent.
        - \`:root { --bg-deep: #fafafa; --card-bg: #ffffff; --primary: #18181b; --accent: #3b82f6; --gray: #a1a1aa; --white: #ffffff; }\`
-    2. **Card Style**: Clean, borderless or 1px hairline:
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">\`
+    3. **Card Style**: Clean, borderless or 1px hairline:
        - \`background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);\`
-    3. **Typography**: Use 'Inter' weight 300-400. Lots of whitespace. Small, elegant text.
-    4. **Animation**: Subtle — gentle opacity fades, small translateY movements. NO glows, NO bouncing.
-    5. **Layout**: Use generous padding and spacing. Less is more. Clean grid lines.
-    6. Dark text on white/light backgrounds. Minimal decoration.`;
+    4. **Typography**: Use 'Inter' weight 300-400. Lots of whitespace. Small, elegant text. Dark text on white/light backgrounds.
+    5. **Animation**: Subtle — gentle opacity fades (duration 0.8-1.2s), small translateY (10-20px) movements. \`power1.out\` easing. NO glows, NO bouncing, NO neon.
+    6. **Background**: body background MUST be \`var(--bg-deep)\` (#fafafa) — near-white. NOT dark.
+    7. **Layout**: Use generous padding (6-8vmin) and spacing. Less is more. Clean grid lines.`;
 
     case 'liquid_glass':
-      return `**DESIGN STYLE: LIQUID GLASS**
+      return `**DESIGN STYLE: LIQUID GLASS** — You MUST fully commit to this style. Chromatic, fluid, organic.
     1. **Color Palette**: Deep dark with chromatic accents.
        - \`:root { --bg-deep: #050510; --glass-bg: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(100,200,255,0.08)); --primary: #00d4ff; --accent: #ff00aa; --white: #e0f0ff; }\`
-    2. **Card Style**: Fluid glass with gradient borders:
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">\`
+    3. **Card Style**: Fluid glass with gradient borders:
        - \`background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,200,255,0.08)); backdrop-filter: blur(16px) saturate(1.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);\`
-    3. **Typography**: Use gradient text fills (background-clip: text). Futuristic, clean.
-    4. **Animation**: Floating, fluid. Organic motion paths. Subtle rotation. Chromatic aberration effects.
-    5. **Effects**: Use CSS filters for blur/glow. Make elements feel like they're underwater or floating in liquid.`;
+    4. **Typography**: Use 'Outfit'. Apply gradient text fills (\`background-clip: text; -webkit-text-fill-color: transparent;\`). Futuristic, clean.
+    5. **Animation**: Floating, fluid. Organic motion paths. Subtle rotation. Chromatic aberration effects. Use \`sine.inOut\` easing.
+    6. **Background**: \`background: radial-gradient(ellipse at 30% 50%, #0a0a2e 0%, #050510 80%);\`
+    7. **Effects**: Use CSS filters for blur/glow. Make elements feel like they're underwater or floating in liquid.`;
 
     case 'skeuomorphism':
-      return `**DESIGN STYLE: SKEUOMORPHISM**
+      return `**DESIGN STYLE: SKEUOMORPHISM** — You MUST fully commit to this style. Realistic textures, depth.
     1. **Color Palette**: Rich, realistic.
        - \`:root { --bg-deep: #2c2c2e; --card-bg: linear-gradient(180deg, #3a3a3c, #2c2c2e); --primary: #ff9f0a; --accent: #30d158; --white: #e5e5ea; }\`
-    2. **Card Style**: Realistic depth, metal/leather feel:
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Georgia&display=swap" rel="stylesheet">\` (or use system serif)
+    3. **Card Style**: Realistic depth, metal/leather feel:
        - \`background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%); border: 1px solid #48484a; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.3);\`
-    3. **Typography**: Use 'Georgia', serif, or 'SF Pro'. Embossed text effect:
+    4. **Typography**: Use 'Georgia', serif, or system serif. Embossed text effect:
        - \`text-shadow: 0 -1px 0 rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05);\`
-    4. **Animation**: Mechanical, precise. Dial turns, meter fills, switch toggles.
-    5. **Elements**: Rounded rectangles with realistic lighting. Inner glows. Beveled edges.`;
+    5. **Animation**: Mechanical, precise. Dial turns, meter fills, switch toggles. Use \`power2.inOut\` easing.
+    6. **Elements**: Rounded rectangles with realistic lighting. Inner glows. Beveled edges.`;
 
     default:
-      return `1. **Color Palette**: Use CSS variables. Dark background (#050505), Neon accents.
+      return `**DESIGN STYLE: CYBERPUNK NEON (DEFAULT)** — Commit fully to dark-mode cyberpunk with neon accents.
+    1. **Color Palette**: Use CSS variables. Pure dark background with vibrant neon accents.
        - \`:root { --bg-deep: #050505; --primary: #00f3ff; --success: #00ff9d; --warning: #ffd700; --danger: #ff0055; --white: #ffffff; }\`
-    2. **Typography**: Mix 'Oswald' (Headers) and 'JetBrains Mono' (Data/Code).
-    3. **Animation Style (GSAP)**: No static slides. Things must pulse, float, or glow.`;
+    2. **Google Fonts**: Include \`<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">\`
+    3. **Card Style**: Dark glassmorphism with neon borders:
+       - \`background: rgba(255,255,255,0.04); border: 1px solid rgba(0,243,255,0.2); border-radius: 12px; box-shadow: 0 0 20px rgba(0,243,255,0.1);\`
+    4. **Typography**: Mix 'Oswald' (Headers, uppercase, bold) and 'JetBrains Mono' (Data/Code, monospaced).
+    5. **Animation Style (GSAP)**: No static slides. Elements must pulse, float, or glow. Use \`back.out(1.7)\` for spawns, \`expo.out\` for reveals. Neon glow pulses via box-shadow animations.
+    6. **Background**: \`background: radial-gradient(circle at center, #111827 0%, #000000 90%);\`
+    7. **Effects**: Neon glows (\`box-shadow: 0 0 30px rgba(0,243,255,0.3)\`), text shadows, scanning lines.`;
   }
 }
